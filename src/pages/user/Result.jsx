@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useAppStore from '../../store/useAppStore'
 
@@ -8,25 +8,43 @@ export default function Result() {
   const navigate = useNavigate()
   const { resultCompositeFile, capturedPhotos, resultQrUrl, resultQrImage, clearSession } = useAppStore()
   const [secondsLeft, setSecondsLeft] = useState(AUTO_RETURN_SECONDS)
+  const [compositeDataUrl, setCompositeDataUrl] = useState(null)
+  const [photoDataUrls, setPhotoDataUrls] = useState([])
+  const timerRef = useRef(null)
 
   const handleFinish = () => {
     clearSession()
     navigate('/')
   }
 
+  // Auto-return countdown
   useEffect(() => {
-    const interval = setInterval(() => {
+    timerRef.current = setInterval(() => {
       setSecondsLeft((s) => {
         if (s <= 1) {
-          clearInterval(interval)
+          clearInterval(timerRef.current)
           handleFinish()
           return 0
         }
         return s - 1
       })
     }, 1000)
-    return () => clearInterval(interval)
+    return () => clearInterval(timerRef.current)
   }, [])
+
+  // Load composite image as data URL via IPC (file:// blocked in dev mode)
+  useEffect(() => {
+    if (resultCompositeFile) {
+      window.electronAPI.app.readFileAsDataUrl(resultCompositeFile).then(url => {
+        if (url) setCompositeDataUrl(url)
+      })
+    } else if (capturedPhotos.length > 0) {
+      // Fallback: load raw photos
+      Promise.all(
+        capturedPhotos.map(p => window.electronAPI.app.readFileAsDataUrl(p))
+      ).then(urls => setPhotoDataUrls(urls.filter(Boolean)))
+    }
+  }, [resultCompositeFile, capturedPhotos])
 
   const hasMockQr = !resultQrUrl || resultQrUrl === 'mock'
 
@@ -39,23 +57,23 @@ export default function Result() {
           Foto Selesai! 🎉
         </h1>
 
-        {resultCompositeFile ? (
+        {compositeDataUrl ? (
           <div className="flex-1 flex items-center justify-center">
             <img
-              src={encodeURI(`file://${resultCompositeFile}`)}
+              src={compositeDataUrl}
               alt="Hasil foto"
               className="max-w-full max-h-full object-contain rounded-xl shadow-lg"
             />
           </div>
-        ) : capturedPhotos.length > 0 ? (
+        ) : photoDataUrls.length > 0 ? (
           <div className="grid grid-cols-2 gap-3 flex-1">
-            {capturedPhotos.map((photoPath, i) => (
+            {photoDataUrls.map((dataUrl, i) => (
               <div
                 key={i}
                 className="aspect-[4/3] bg-brand-surface rounded-xl overflow-hidden"
               >
                 <img
-                  src={encodeURI(`file://${photoPath}`)}
+                  src={dataUrl}
                   alt={`Foto ${i + 1}`}
                   className="w-full h-full object-cover"
                 />
@@ -64,7 +82,7 @@ export default function Result() {
           </div>
         ) : (
           <div className="flex-1 bg-brand-surface rounded-2xl flex items-center justify-center">
-            <p className="text-brand-text/30">Tidak ada foto</p>
+            <p className="text-brand-text/30">Memproses...</p>
           </div>
         )}
       </div>

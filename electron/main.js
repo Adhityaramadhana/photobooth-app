@@ -1,6 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, Menu } from 'electron'
-import { join } from 'path'
-import { mkdirSync } from 'fs'
+import { join, extname } from 'path'
+import { mkdirSync, readFileSync, existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import {
   checkService,
@@ -86,6 +86,14 @@ ipcMain.handle('app:getSessionDir', () => {
   const dir = join(app.getPath('userData'), 'sessions', Date.now().toString())
   mkdirSync(dir, { recursive: true })
   return dir
+})
+
+ipcMain.handle('app:readFileAsDataUrl', (_, filePath) => {
+  if (!filePath || !existsSync(filePath)) return null
+  const ext = extname(filePath).toLowerCase()
+  const mime = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif' : 'image/jpeg'
+  const data = readFileSync(filePath)
+  return `data:${mime};base64,${data.toString('base64')}`
 })
 
 // ── IPC: Camera ───────────────────────────────────────────────────────────────

@@ -6,7 +6,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ping: () => ipcRenderer.invoke('ping'),
 
   app: {
-    getSessionDir: () => ipcRenderer.invoke('app:getSessionDir')
+    getSessionDir: () => ipcRenderer.invoke('app:getSessionDir'),
+    readFileAsDataUrl: (filePath) => ipcRenderer.invoke('app:readFileAsDataUrl', filePath),
   },
 
   camera: {
