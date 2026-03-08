@@ -1,0 +1,25 @@
+{
+  "midtrans": {
+    "serverKey": "",
+    "clientKey": "",
+    "isProduction": false
+  },
+  "pricing": {
+    "sessionPrice": 30000
+  },
+  "printer": {
+    "name": "",
+    "copies": 1
+  },
+  "branding": {
+    "studioName": "Photobooth",
+    "primaryColor": "#e94560"
+  },
+  "admin": {
+    "password": "admin123"
+  },
+  "firebase": {
+    "apiKey": "",
+    "storageBucket": ""
+  }
+}
