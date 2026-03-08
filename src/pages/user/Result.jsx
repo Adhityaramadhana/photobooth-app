@@ -49,16 +49,16 @@ export default function Result() {
   const hasMockQr = !resultQrUrl || resultQrUrl === 'mock'
 
   return (
-    <div className="flex min-h-screen gap-8 px-8 py-10">
+    <div className="flex h-screen gap-8 px-8 py-10 overflow-hidden">
 
       {/* Kiri: preview foto */}
-      <div className="flex flex-col gap-6 flex-1 min-w-0">
+      <div className="flex flex-col gap-6 flex-1 min-w-0 min-h-0">
         <h1 className="text-3xl font-bold text-brand-text tracking-tight">
           Foto Selesai! 🎉
         </h1>
 
         {compositeDataUrl ? (
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex-1 min-h-0 flex items-center justify-center">
             <img
               src={compositeDataUrl}
               alt="Hasil foto"
