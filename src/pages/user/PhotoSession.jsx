@@ -5,6 +5,7 @@ import useAppStore from '../../store/useAppStore'
 const COUNTDOWN_SECONDS = 3
 const FLASH_DURATION_MS = 600
 const INTER_PHOTO_DELAY_MS = 1500
+const LIVE_FRAME_INTERVAL_MS = 200  // rekam frame tiap 200ms untuk GIF
 
 export default function PhotoSession() {
   const navigate = useNavigate()
@@ -13,6 +14,7 @@ export default function PhotoSession() {
     currentSessionDir,
     setCurrentSessionDir,
     addCapturedPhoto,
+    addLiveFrame,
     setLiveViewActive,
     setLiveViewFrameUrl,
     liveViewFrameUrl,
@@ -35,6 +37,10 @@ export default function PhotoSession() {
   const webcamVideoRef = useRef(null)
   const webcamCanvasRef = useRef(null)
   const isWebcamRef = useRef(false)
+
+  // Live frame recording refs
+  const liveFrameIntervalRef = useRef(null)
+  const liveFrameCounterRef = useRef(0)
 
   // ── Start live view (handle webcam + real + mock) ────────────────────────────
   const startLiveViewForStep = useCallback(async () => {
@@ -119,6 +125,7 @@ export default function PhotoSession() {
 
     return () => {
       if (liveViewInterval.current) clearInterval(liveViewInterval.current)
+      if (liveFrameIntervalRef.current) clearInterval(liveFrameIntervalRef.current)
       // Stop webcam stream saat unmount
       webcamStreamRef.current?.getTracks().forEach(t => t.stop())
       webcamStreamRef.current = null
@@ -126,6 +133,42 @@ export default function PhotoSession() {
       setLiveViewActive(false)
     }
   }, [])
+
+  // ── Live frame recording helpers ──────────────────────────────────────────────
+  const startFrameRecording = (dir, photoIndex) => {
+    liveFrameCounterRef.current = 0
+    liveFrameIntervalRef.current = setInterval(() => {
+      // Ambil frame dari webcam canvas atau liveViewFrameUrl
+      let dataUrl = null
+
+      const video = webcamVideoRef.current
+      const canvas = webcamCanvasRef.current
+      if (video && canvas && video.readyState >= 2 && video.videoWidth > 0) {
+        // Webcam: render frame dari video element
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        canvas.getContext('2d').drawImage(video, 0, 0)
+        dataUrl = canvas.toDataURL('image/jpeg', 0.6)
+      }
+
+      if (!dataUrl) return
+
+      const frameIdx = liveFrameCounterRef.current++
+      // Fire-and-forget: simpan ke disk tanpa blocking
+      window.electronAPI.camera.saveLiveFrame(dir, dataUrl, photoIndex, frameIdx)
+        .then(res => {
+          if (res.success) addLiveFrame(res.filePath)
+        })
+        .catch(() => {}) // ignore errors, jangan ganggu countdown
+    }, LIVE_FRAME_INTERVAL_MS)
+  }
+
+  const stopFrameRecording = () => {
+    if (liveFrameIntervalRef.current) {
+      clearInterval(liveFrameIntervalRef.current)
+      liveFrameIntervalRef.current = null
+    }
+  }
 
   // ── Foto step ─────────────────────────────────────────────────────────────────
   const startPhotoStep = async (photoIndex, sessionDir) => {
@@ -140,13 +183,15 @@ export default function PhotoSession() {
       return
     }
 
-    // Countdown 3-2-1
+    // Countdown 3-2-1 + rekam frames untuk GIF
     setPhase('countdown')
+    startFrameRecording(dir, photoIndex)
     for (let i = COUNTDOWN_SECONDS; i >= 1; i--) {
       setCountdown(i)
       await sleep(1000)
     }
     setCountdown(null)
+    stopFrameRecording()
 
     // Flash + capture
     setPhase('flash')

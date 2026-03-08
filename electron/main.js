@@ -10,6 +10,7 @@ import {
   stopLiveView,
   capturePhoto,
   saveWebcamFrame,
+  saveLiveFrame,
   startHealthCheck,
   stopHealthCheck
 } from './handlers/cameraHandlers'
@@ -104,6 +105,7 @@ ipcMain.handle('camera:startLiveView', () => startLiveView())
 ipcMain.handle('camera:stopLiveView', () => stopLiveView())
 ipcMain.handle('camera:capture', (_, outputDir) => capturePhoto(outputDir))
 ipcMain.handle('camera:saveWebcamFrame', (_, outputDir, base64) => saveWebcamFrame(outputDir, base64))
+ipcMain.handle('camera:saveLiveFrame', (_, outputDir, base64, photoIndex, frameIndex) => saveLiveFrame(outputDir, base64, photoIndex, frameIndex))
 ipcMain.handle('camera:startHealthCheck', () => startHealthCheck(mainWindow))
 ipcMain.handle('camera:stopHealthCheck', () => stopHealthCheck())
 

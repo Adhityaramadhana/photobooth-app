@@ -87,42 +87,38 @@ export default function Result() {
         )}
       </div>
 
-      {/* Kanan: QR code + tombol selesai */}
-      <div className="flex flex-col items-center justify-between w-72 flex-shrink-0 py-4">
-        <div className="flex flex-col items-center gap-4 w-full">
-          <p className="text-brand-text/60 text-sm text-center">
-            Scan QR untuk download foto di HP kamu
-          </p>
+      {/* Kanan: QR code + tombol selesai — grouped at bottom */}
+      <div className="flex flex-col justify-end items-center gap-5 w-80 flex-shrink-0 py-4">
+        <p className="text-brand-text/60 text-sm text-center">
+          Scan QR untuk download foto di HP kamu
+        </p>
 
-          {hasMockQr ? (
-            <div className="w-52 h-52 bg-brand-surface border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 p-4">
-              <span className="text-2xl">⚙️</span>
-              <p className="text-brand-text/40 text-xs text-center">
-                QR belum dikonfigurasi. Atur Firebase di Admin → Branding.
-              </p>
-            </div>
-          ) : (
-            <div className="w-52 h-52 bg-white rounded-2xl p-2 overflow-hidden">
-              <img
-                src={resultQrImage}
-                alt="QR Code"
-                className="w-full h-full object-contain"
-              />
-            </div>
-          )}
-        </div>
+        {hasMockQr ? (
+          <div className="w-64 h-64 bg-brand-surface border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 p-4">
+            <span className="text-3xl">⚙️</span>
+            <p className="text-brand-text/40 text-xs text-center">
+              QR belum dikonfigurasi. Atur Firebase di Admin → Branding.
+            </p>
+          </div>
+        ) : (
+          <div className="w-64 h-64 bg-white rounded-2xl p-2 overflow-hidden">
+            <img
+              src={resultQrImage}
+              alt="QR Code"
+              className="w-full h-full object-contain"
+            />
+          </div>
+        )}
 
-        <div className="flex flex-col items-center gap-3 w-full">
-          <button
-            onClick={handleFinish}
-            className="w-full py-4 bg-brand-secondary text-white rounded-2xl text-lg font-semibold active:scale-95 transition"
-          >
-            Selesai
-          </button>
-          <p className="text-brand-text/20 text-sm font-mono">
-            Kembali otomatis dalam {secondsLeft}s
-          </p>
-        </div>
+        <button
+          onClick={handleFinish}
+          className="w-full py-4 bg-brand-secondary text-white rounded-2xl text-lg font-semibold active:scale-95 transition"
+        >
+          Selesai
+        </button>
+        <p className="text-brand-text/20 text-sm font-mono">
+          Kembali otomatis dalam {secondsLeft}s
+        </p>
       </div>
 
     </div>

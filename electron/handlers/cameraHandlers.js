@@ -146,6 +146,24 @@ export async function saveWebcamFrame(outputDir, base64Data) {
   }
 }
 
+/**
+ * Simpan satu frame live view ke disk untuk GIF/Boomerang.
+ * Path: {outputDir}/live-frames/photo-{photoIndex}/frame-{frameIndex}.jpg
+ */
+export function saveLiveFrame(outputDir, base64Data, photoIndex, frameIndex) {
+  try {
+    const base64 = base64Data.replace(/^data:image\/\w+;base64,/, '')
+    const buffer = Buffer.from(base64, 'base64')
+    const dir = path.join(outputDir, 'live-frames', `photo-${photoIndex}`)
+    fs.mkdirSync(dir, { recursive: true })
+    const filePath = path.join(dir, `frame-${String(frameIndex).padStart(4, '0')}.jpg`)
+    fs.writeFileSync(filePath, buffer)
+    return { success: true, filePath }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+}
+
 export function startHealthCheck(mainWindow) {
   if (WEBCAM_MODE || MOCK_MODE) return // tidak perlu health check di mock/webcam mode
   mainWindowRef = mainWindow
