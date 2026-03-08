@@ -34,7 +34,9 @@
       "Bash(done)",
       "Bash(python3 -c \"from PIL import Image; img = Image.open\\(''/Users/boba/Documents/Project/photobooth-app/resources/frames/frame-1772970257095/frame.png''\\); print\\(img.size\\)\")",
       "Bash(sips -g pixelHeight -g pixelWidth /Users/boba/Documents/Project/photobooth-app/resources/frames/frame-1772970257095/frame.png)",
-      "Bash(node -e \"const fs = require\\(''fs''\\); const buf = fs.readFileSync\\(''D:/Coding/Photobooth/photobooth-app/resources/frames/frame-1772970257095/frame.png''\\); console.log\\(''PNG size:'', buf.length, ''bytes''\\); const w = buf.readUInt32BE\\(16\\); const h = buf.readUInt32BE\\(20\\); console.log\\(''Dimensions:'', w, ''x'', h\\);\")"
+      "Bash(node -e \"const fs = require\\(''fs''\\); const buf = fs.readFileSync\\(''D:/Coding/Photobooth/photobooth-app/resources/frames/frame-1772970257095/frame.png''\\); console.log\\(''PNG size:'', buf.length, ''bytes''\\); const w = buf.readUInt32BE\\(16\\); const h = buf.readUInt32BE\\(20\\); console.log\\(''Dimensions:'', w, ''x'', h\\);\")",
+      "Bash(node -e \"const c=JSON.parse\\(require\\(''fs''\\).readFileSync\\(''resources/frames/frame-1772960806197/config.json'',''utf-8''\\)\\); c.layers.forEach\\(\\(l,i\\)=>{console.log\\(i, l.layerRole, ''src?'', l.src?l.src.substring\\(0,80\\)+''...'':''NONE'', ''_assetFileName?'', l._assetFileName||''NONE''\\)}\\)\")",
+      "Bash(node -e \"const c=JSON.parse\\(require\\(''fs''\\).readFileSync\\(''resources/frames/frame-1772970257095/config.json'',''utf-8''\\)\\); c.layers.forEach\\(\\(l,i\\)=>{console.log\\(i, l.layerRole, ''src?'', l.src?l.src.substring\\(0,80\\)+''...'':''NONE'', ''_assetFileName?'', l._assetFileName||''NONE''\\)}\\)\")"
     ]
   }
 }

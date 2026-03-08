@@ -45,18 +45,22 @@ export default function Processing() {
 
       let compositeFile = null
       if (frame && photos.length > 0) {
+        console.log('[Processing] Composite input:', { sessionDir, frameId: frame.id, photosCount: photos.length, photos })
         const result = await window.electronAPI.composite.run({
           sessionDir,
           photos,
           frameId: frame.id,
           slots: frame.slots,
         })
+        console.log('[Processing] Composite result:', result)
         if (result.success) {
           compositeFile = result.filePath
           setResultCompositeFile(compositeFile)
         } else {
           console.warn('[Processing] Composite failed:', result.error)
         }
+      } else {
+        console.warn('[Processing] Skipping composite — frame:', !!frame, 'photos:', photos.length)
       }
 
       // ── Step 2: GIF & Boomerang ────────────────────────────────────────────

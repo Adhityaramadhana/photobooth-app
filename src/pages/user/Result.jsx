@@ -6,7 +6,7 @@ const AUTO_RETURN_SECONDS = 60
 
 export default function Result() {
   const navigate = useNavigate()
-  const { resultCompositeFile, resultQrUrl, resultQrImage, clearSession } = useAppStore()
+  const { resultCompositeFile, capturedPhotos, resultQrUrl, resultQrImage, clearSession } = useAppStore()
   const [secondsLeft, setSecondsLeft] = useState(AUTO_RETURN_SECONDS)
 
   const handleFinish = () => {
@@ -46,6 +46,21 @@ export default function Result() {
               alt="Hasil foto"
               className="max-w-full max-h-full object-contain rounded-xl shadow-lg"
             />
+          </div>
+        ) : capturedPhotos.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3 flex-1">
+            {capturedPhotos.map((photoPath, i) => (
+              <div
+                key={i}
+                className="aspect-[4/3] bg-brand-surface rounded-xl overflow-hidden"
+              >
+                <img
+                  src={encodeURI(`file://${photoPath}`)}
+                  alt={`Foto ${i + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ))}
           </div>
         ) : (
           <div className="flex-1 bg-brand-surface rounded-2xl flex items-center justify-center">

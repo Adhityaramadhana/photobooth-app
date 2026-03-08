@@ -178,7 +178,20 @@ async function compositeV2({ sessionDir, photos, frameId, config, sessionData })
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function resolveImageLayer(frameId, layer, fitW, fitH) {
-  // Try loading from assets dir first, then frame.png fallback
+  // NOTE: layer.width/height come from canvasToLayers which uses obj.getScaledWidth() —
+  // they are already the final rendered pixel size. Do NOT multiply by scaleX/Y again.
+
+  const w = fitW || Math.round(layer.width || 100)
+  const h = fitH || Math.round(layer.height || 100)
+
+  // Handle embedded base64 data URIs FIRST — these must not be passed to path.join
+  if (layer.src?.startsWith('data:')) {
+    const raw = layer.src.replace(/^data:image\/\w+;base64,/, '')
+    const buf = Buffer.from(raw, 'base64')
+    return sharp(buf).resize(w, h, { fit: 'fill' }).png().toBuffer()
+  }
+
+  // Try loading from assets dir, then frame.png fallback
   const assetsDir = path.join(framesDir(), frameId, 'assets')
   const framePng = path.join(framesDir(), frameId, 'frame.png')
 
@@ -191,26 +204,11 @@ async function resolveImageLayer(frameId, layer, fitW, fitH) {
   }
 
   // For overlay without explicit src, try frame.png
-  if (!imagePath && layer.layerRole === 'overlay') {
+  if (!imagePath && (layer.layerRole === 'overlay' || layer.layerRole === 'background')) {
     if (fs.existsSync(framePng)) imagePath = framePng
   }
 
-  // NOTE: layer.width/height come from canvasToLayers which uses obj.getScaledWidth() —
-  // they are already the final rendered pixel size. Do NOT multiply by scaleX/Y again.
-
-  // If layer has embedded base64 from fabric serialization
-  if (!imagePath && layer.src?.startsWith('data:')) {
-    const raw = layer.src.replace(/^data:image\/\w+;base64,/, '')
-    const buf = Buffer.from(raw, 'base64')
-    const w = fitW || Math.round(layer.width || 100)
-    const h = fitH || Math.round(layer.height || 100)
-    return sharp(buf).resize(w, h, { fit: 'fill' }).png().toBuffer()
-  }
-
   if (!imagePath) return null
-
-  const w = fitW || Math.round(layer.width || 100)
-  const h = fitH || Math.round(layer.height || 100)
 
   return sharp(imagePath).resize(w, h, { fit: 'fill' }).png().toBuffer()
 }
