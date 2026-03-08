@@ -194,15 +194,40 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
 
       const cw = config.canvas?.width  || canvas.width
       const ch = config.canvas?.height || canvas.height
+
+      // Detect if overlay extends beyond canvas — transform slots accordingly
+      const overlayLayer = config.layers.find(l =>
+        l.layerRole === 'overlay' || l.layerRole === 'background'
+      )
+      let slotTransform = null
+      if (overlayLayer) {
+        const ol = overlayLayer.left || 0
+        const ot = overlayLayer.top  || 0
+        const ow = overlayLayer.width  || cw
+        const oh = overlayLayer.height || ch
+        const oob = ol < -2 || ot < -2 || ol + ow > cw + 2 || ot + oh > ch + 2
+        if (oob && ow > 0 && oh > 0) {
+          slotTransform = { ol, ot, sx: cw / ow, sy: ch / oh }
+        }
+      }
+
       config.slots = config.layers
         .filter(l => l.layerRole === 'photo-slot')
         .sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0))
         .map(l => {
-          // Clamp slot coordinates to canvas bounds
-          const x = Math.max(0, Math.min(l.left, cw - 1))
-          const y = Math.max(0, Math.min(l.top, ch - 1))
-          const w = Math.min(l.width, cw - x)
-          const h = Math.min(l.height, ch - y)
+          let x = l.left, y = l.top, w = l.width, h = l.height
+          // Transform slot positions to match the auto-fitted overlay in frame PNG
+          if (slotTransform) {
+            x = Math.round((x - slotTransform.ol) * slotTransform.sx)
+            y = Math.round((y - slotTransform.ot) * slotTransform.sy)
+            w = Math.round(w * slotTransform.sx)
+            h = Math.round(h * slotTransform.sy)
+          }
+          // Safety clamp
+          x = Math.max(0, x)
+          y = Math.max(0, y)
+          w = Math.min(w, cw - x)
+          h = Math.min(h, ch - y)
           return { x, y, width: w, height: h }
         })
         .filter(s => s.width > 10 && s.height > 10)
