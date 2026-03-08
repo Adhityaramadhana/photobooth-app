@@ -33,7 +33,8 @@
       "Bash(python3 -c \":*)",
       "Bash(done)",
       "Bash(python3 -c \"from PIL import Image; img = Image.open\\(''/Users/boba/Documents/Project/photobooth-app/resources/frames/frame-1772970257095/frame.png''\\); print\\(img.size\\)\")",
-      "Bash(sips -g pixelHeight -g pixelWidth /Users/boba/Documents/Project/photobooth-app/resources/frames/frame-1772970257095/frame.png)"
+      "Bash(sips -g pixelHeight -g pixelWidth /Users/boba/Documents/Project/photobooth-app/resources/frames/frame-1772970257095/frame.png)",
+      "Bash(node -e \"const fs = require\\(''fs''\\); const buf = fs.readFileSync\\(''D:/Coding/Photobooth/photobooth-app/resources/frames/frame-1772970257095/frame.png''\\); console.log\\(''PNG size:'', buf.length, ''bytes''\\); const w = buf.readUInt32BE\\(16\\); const h = buf.readUInt32BE\\(20\\); console.log\\(''Dimensions:'', w, ''x'', h\\);\")"
     ]
   }
 }

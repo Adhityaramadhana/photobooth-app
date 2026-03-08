@@ -192,10 +192,20 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
         orientation: layout.orientation,
       })
 
+      const cw = config.canvas?.width  || canvas.width
+      const ch = config.canvas?.height || canvas.height
       config.slots = config.layers
         .filter(l => l.layerRole === 'photo-slot')
         .sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0))
-        .map(l => ({ x: l.left, y: l.top, width: l.width, height: l.height }))
+        .map(l => {
+          // Clamp slot coordinates to canvas bounds
+          const x = Math.max(0, Math.min(l.left, cw - 1))
+          const y = Math.max(0, Math.min(l.top, ch - 1))
+          const w = Math.min(l.width, cw - x)
+          const h = Math.min(l.height, ch - y)
+          return { x, y, width: w, height: h }
+        })
+        .filter(s => s.width > 10 && s.height > 10)
       config.thumbnailSlot = 0
 
       const result = await window.electronAPI.frame.saveConfig(frameId, config)
@@ -211,6 +221,32 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
           const savedBg = canvas.backgroundColor
           canvas.backgroundColor = null   // transparent background for PNG export
 
+          // Auto-fit overlay/background images that extend beyond canvas bounds
+          // so the exported PNG matches what the admin sees in the zoomed editor
+          const fitTargets = canvas.getObjects().filter(o =>
+            (o.layerRole === 'overlay' || o.layerRole === 'background') && o.visible !== false
+          )
+          const savedFitProps = fitTargets.map(o => ({
+            obj: o, left: o.left, top: o.top, scaleX: o.scaleX, scaleY: o.scaleY,
+          }))
+          fitTargets.forEach(o => {
+            const rw = o.getScaledWidth()
+            const rh = o.getScaledHeight()
+            const oob = o.left < 0 || o.top < 0 ||
+                        o.left + rw > canvas.width * 1.01 ||
+                        o.top + rh > canvas.height * 1.01
+            if (oob) {
+              // Scale to cover the canvas exactly (object-fit: cover)
+              const coverScale = Math.max(canvas.width / o.width, canvas.height / o.height)
+              o.set({
+                left: (canvas.width - o.width * coverScale) / 2,
+                top: (canvas.height - o.height * coverScale) / 2,
+                scaleX: coverScale,
+                scaleY: coverScale,
+              })
+            }
+          })
+
           // Reset viewport to identity so we export at full canvas resolution
           const savedVPT = [...canvas.viewportTransform]
           canvas.setViewportTransform([1, 0, 0, 1, 0, 0])
@@ -222,6 +258,9 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
           canvas.setViewportTransform(savedVPT)
           canvas.backgroundColor = savedBg
           slotObjs.forEach(o => { o.visible = true })
+          savedFitProps.forEach(({ obj, left, top, scaleX, scaleY }) => {
+            obj.set({ left, top, scaleX, scaleY })
+          })
           canvas.renderAll()
 
           await window.electronAPI.frame.uploadPng(frameId, pngDataUrl)

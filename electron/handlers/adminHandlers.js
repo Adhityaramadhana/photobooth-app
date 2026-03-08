@@ -95,12 +95,27 @@ export function getFrameList() {
         if (!config) return null
 
         // v2 config: extract slots from layers
+        const cw = config.canvas?.width  || 1200
+        const ch = config.canvas?.height || 1800
         let slots = config.slots ?? []
         if (config.version === 2 && config.layers) {
           slots = config.layers
             .filter(l => l.layerRole === 'photo-slot')
             .sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0))
             .map(l => ({ x: l.left, y: l.top, width: l.width, height: l.height }))
+        }
+
+        // Clamp slots to canvas bounds — discard completely OOB slots
+        if (config.version === 2) {
+          slots = slots
+            .map(s => {
+              const x = Math.max(0, Math.min(s.x, cw - 1))
+              const y = Math.max(0, Math.min(s.y, ch - 1))
+              const w = Math.min(s.width, cw - x)
+              const h = Math.min(s.height, ch - y)
+              return { x, y, width: w, height: h }
+            })
+            .filter(s => s.width > 10 && s.height > 10)
         }
 
         return {
@@ -110,8 +125,8 @@ export function getFrameList() {
           thumbnailSlot: config.thumbnailSlot ?? 0,
           version: config.version ?? 1,
           // Canvas dimensions (v2 only) — used by SelectFrame when no frame.png exists yet
-          canvasWidth:  config.version === 2 ? (config.canvas?.width  || 1200) : null,
-          canvasHeight: config.version === 2 ? (config.canvas?.height || 1800) : null,
+          canvasWidth:  config.version === 2 ? cw : null,
+          canvasHeight: config.version === 2 ? ch : null,
         }
       })
       .filter(Boolean)

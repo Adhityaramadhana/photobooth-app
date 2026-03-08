@@ -127,13 +127,15 @@ export default function EditorToolbar({ canvasRef, frameId, onSync }) {
         if (frameId) await window.electronAPI.frame.uploadAsset(frameId, fileName, base64)
         try {
           const img = await FabricImage.fromURL(base64, { crossOrigin: 'anonymous' })
-          const maxScale = Math.min(
-            (canvas.width * 0.5) / img.width,
-            (canvas.height * 0.5) / img.height,
-            1
+          // Scale to cover the full canvas (like object-fit: cover), centered
+          const coverScale = Math.max(
+            canvas.width / img.width,
+            canvas.height / img.height,
           )
+          const fitLeft = (canvas.width - img.width * coverScale) / 2
+          const fitTop = (canvas.height - img.height * coverScale) / 2
           img.set({
-            left: 50, top: 50, scaleX: maxScale, scaleY: maxScale,
+            left: fitLeft, top: fitTop, scaleX: coverScale, scaleY: coverScale,
             id: uid('img'), name: file.name.replace(/\.[^.]+$/, ''),
             layerRole: 'overlay', locked: false, _assetFileName: fileName,
           })

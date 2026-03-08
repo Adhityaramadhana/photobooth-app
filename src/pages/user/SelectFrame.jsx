@@ -193,7 +193,7 @@ export default function SelectFrame() {
                     : 'border-transparent hover:border-white/20'
                 }`}
               >
-                <div className="aspect-[3/4] bg-black/40">
+                <div className="bg-black/40" style={{ aspectRatio: frame.canvasWidth && frame.canvasHeight ? `${frame.canvasWidth}/${frame.canvasHeight}` : '3/4' }}>
                   {framePngs[frame.id] ? (
                     // Has PNG — show it
                     <img
