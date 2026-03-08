@@ -103,18 +103,37 @@ export function getFrameList() {
             .filter(l => l.layerRole === 'photo-slot')
             .sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0))
             .map(l => ({ x: l.left, y: l.top, width: l.width, height: l.height }))
-        }
 
-        // Clamp slots to canvas bounds — discard completely OOB slots
-        if (config.version === 2) {
+          // If the overlay extends beyond canvas, the admin placed slots relative
+          // to the over-scaled overlay. Transform slot positions so they match the
+          // auto-fitted overlay in the exported frame PNG.
+          const overlay = config.layers.find(l =>
+            l.layerRole === 'overlay' || l.layerRole === 'background'
+          )
+          if (overlay) {
+            const ol = overlay.left || 0
+            const ot = overlay.top  || 0
+            const ow = overlay.width  || cw
+            const oh = overlay.height || ch
+            const oob = ol < -2 || ot < -2 || ol + ow > cw + 2 || ot + oh > ch + 2
+            if (oob && ow > 0 && oh > 0) {
+              slots = slots.map(s => ({
+                x: Math.round((s.x - ol) * cw / ow),
+                y: Math.round((s.y - ot) * ch / oh),
+                width:  Math.round(s.width  * cw / ow),
+                height: Math.round(s.height * ch / oh),
+              }))
+            }
+          }
+
+          // Final safety clamp to canvas bounds
           slots = slots
-            .map(s => {
-              const x = Math.max(0, Math.min(s.x, cw - 1))
-              const y = Math.max(0, Math.min(s.y, ch - 1))
-              const w = Math.min(s.width, cw - x)
-              const h = Math.min(s.height, ch - y)
-              return { x, y, width: w, height: h }
-            })
+            .map(s => ({
+              x: Math.max(0, s.x),
+              y: Math.max(0, s.y),
+              width:  Math.min(s.width,  cw - Math.max(0, s.x)),
+              height: Math.min(s.height, ch - Math.max(0, s.y)),
+            }))
             .filter(s => s.width > 10 && s.height > 10)
         }
 

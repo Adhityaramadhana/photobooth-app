@@ -76,6 +76,22 @@ async function compositeV2({ sessionDir, photos, frameId, config, sessionData })
   const canvasH = config.canvas?.height || 1800
   const bgColor = parseColor(config.canvas?.backgroundColor || '#ffffff')
 
+  // Detect if overlay extends beyond canvas — compute transform for slot positions
+  const overlayLayer = config.layers.find(l =>
+    (l.layerRole === 'overlay' || l.layerRole === 'background') && l.visible !== false
+  )
+  let slotTransform = null
+  if (overlayLayer) {
+    const ol = overlayLayer.left || 0
+    const ot = overlayLayer.top  || 0
+    const ow = overlayLayer.width  || canvasW
+    const oh = overlayLayer.height || canvasH
+    const oob = ol < -2 || ot < -2 || ol + ow > canvasW + 2 || ot + oh > canvasH + 2
+    if (oob && ow > 0 && oh > 0) {
+      slotTransform = { ol, ot, sx: canvasW / ow, sy: canvasH / oh }
+    }
+  }
+
   const compositeLayers = []
 
   for (const layer of config.layers) {
@@ -85,6 +101,7 @@ async function compositeV2({ sessionDir, photos, frameId, config, sessionData })
 
     switch (layer.layerRole) {
       case 'background': {
+        // Always fit background to full canvas
         const buf = await resolveImageLayer(frameId, layer, canvasW, canvasH)
         if (buf) compositeLayers.push({ input: buf, top: 0, left: 0 })
         break
@@ -95,29 +112,37 @@ async function compositeV2({ sessionDir, photos, frameId, config, sessionData })
         const photoPath = photos[idx]
         if (!photoPath || !fs.existsSync(photoPath)) break
 
-        // Clamp slot position and size to stay within canvas bounds
-        const slotLeft = Math.max(0, Math.round(layer.left || 0))
-        const slotTop  = Math.max(0, Math.round(layer.top  || 0))
-        const slotW = Math.min(Math.round(layer.width  || 400), canvasW - slotLeft)
-        const slotH = Math.min(Math.round(layer.height || 300), canvasH - slotTop)
-        if (slotW <= 0 || slotH <= 0) break
+        // Transform slot position if overlay was over-scaled
+        let sl = Math.round(layer.left || 0)
+        let st = Math.round(layer.top  || 0)
+        let sw = Math.round(layer.width  || 400)
+        let sh = Math.round(layer.height || 300)
+        if (slotTransform) {
+          sl = Math.round((sl - slotTransform.ol) * slotTransform.sx)
+          st = Math.round((st - slotTransform.ot) * slotTransform.sy)
+          sw = Math.round(sw * slotTransform.sx)
+          sh = Math.round(sh * slotTransform.sy)
+        }
+
+        // Safety clamp to canvas bounds
+        sl = Math.max(0, sl)
+        st = Math.max(0, st)
+        sw = Math.min(sw, canvasW - sl)
+        sh = Math.min(sh, canvasH - st)
+        if (sw <= 0 || sh <= 0) break
 
         const buf = await sharp(photoPath)
-          .resize(slotW, slotH, { fit: 'cover', position: 'centre' })
+          .resize(sw, sh, { fit: 'cover', position: 'centre' })
           .toBuffer()
 
-        compositeLayers.push({ input: buf, top: slotTop, left: slotLeft })
+        compositeLayers.push({ input: buf, top: st, left: sl })
         break
       }
 
       case 'overlay': {
-        // Clamp overlay to canvas bounds
-        const oLeft = Math.max(0, Math.round(layer.left || 0))
-        const oTop  = Math.max(0, Math.round(layer.top  || 0))
-        const oW = Math.min(Math.round(layer.width  || canvasW), canvasW - oLeft)
-        const oH = Math.min(Math.round(layer.height || canvasH), canvasH - oTop)
-        const buf = await resolveImageLayer(frameId, layer, oW, oH)
-        if (buf) compositeLayers.push({ input: buf, top: oTop, left: oLeft })
+        // Fit overlay to full canvas (same as PNG export auto-fit)
+        const buf = await resolveImageLayer(frameId, layer, canvasW, canvasH)
+        if (buf) compositeLayers.push({ input: buf, top: 0, left: 0 })
         break
       }
 
