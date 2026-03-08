@@ -16,6 +16,7 @@ export default function Processing() {
     selectedFrame,
     currentSessionDir,
     liveFrameBuffer,
+    setResultCompositeFile,
     setResultQrUrl,
     setResultQrImage,
     setProcessingStep,
@@ -52,6 +53,7 @@ export default function Processing() {
         })
         if (result.success) {
           compositeFile = result.filePath
+          setResultCompositeFile(compositeFile)
         } else {
           console.warn('[Processing] Composite failed:', result.error)
         }

@@ -9,6 +9,7 @@ const useAppStore = create((set) => ({
   paymentStatus: null,        // 'pending' | 'paid' | null
   paymentMethod: null,        // 'qris' | 'voucher' | null
   liveFrameBuffer: [],        // buffer frame paths untuk generate GIF
+  resultCompositeFile: null,   // path file composite (foto + frame)
   resultQrUrl: null,          // URL halaman hasil (Firebase)
   resultQrImage: null,        // base64 PNG QR code untuk ditampilkan
   processingStep: null,       // step processing aktif (untuk UI progress)
@@ -39,6 +40,7 @@ const useAppStore = create((set) => ({
       paymentStatus: null,
       paymentMethod: null,
       liveFrameBuffer: [],
+      resultCompositeFile: null,
       resultQrUrl: null,
       resultQrImage: null,
       processingStep: null,
@@ -54,6 +56,7 @@ const useAppStore = create((set) => ({
     set((state) => ({ liveFrameBuffer: [...state.liveFrameBuffer, path] })),
   clearLiveFrames: () => set({ liveFrameBuffer: [] }),
 
+  setResultCompositeFile: (path) => set({ resultCompositeFile: path }),
   setResultQrUrl: (url) => set({ resultQrUrl: url }),
   setResultQrImage: (img) => set({ resultQrImage: img }),
   setProcessingStep: (step) => set({ processingStep: step }),
