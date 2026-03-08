@@ -95,29 +95,29 @@ async function compositeV2({ sessionDir, photos, frameId, config, sessionData })
         const photoPath = photos[idx]
         if (!photoPath || !fs.existsSync(photoPath)) break
 
-        const w = Math.round(layer.width || 400)
-        const h = Math.round(layer.height || 300)
+        // Clamp slot position and size to stay within canvas bounds
+        const slotLeft = Math.max(0, Math.round(layer.left || 0))
+        const slotTop  = Math.max(0, Math.round(layer.top  || 0))
+        const slotW = Math.min(Math.round(layer.width  || 400), canvasW - slotLeft)
+        const slotH = Math.min(Math.round(layer.height || 300), canvasH - slotTop)
+        if (slotW <= 0 || slotH <= 0) break
+
         const buf = await sharp(photoPath)
-          .resize(w, h, { fit: 'cover', position: 'centre' })
+          .resize(slotW, slotH, { fit: 'cover', position: 'centre' })
           .toBuffer()
 
-        compositeLayers.push({
-          input: buf,
-          top: Math.round(layer.top || 0),
-          left: Math.round(layer.left || 0),
-        })
+        compositeLayers.push({ input: buf, top: slotTop, left: slotLeft })
         break
       }
 
       case 'overlay': {
-        const buf = await resolveImageLayer(frameId, layer, null, null)
-        if (buf) {
-          compositeLayers.push({
-            input: buf,
-            top: Math.round(layer.top || 0),
-            left: Math.round(layer.left || 0),
-          })
-        }
+        // Clamp overlay to canvas bounds
+        const oLeft = Math.max(0, Math.round(layer.left || 0))
+        const oTop  = Math.max(0, Math.round(layer.top  || 0))
+        const oW = Math.min(Math.round(layer.width  || canvasW), canvasW - oLeft)
+        const oH = Math.min(Math.round(layer.height || canvasH), canvasH - oTop)
+        const buf = await resolveImageLayer(frameId, layer, oW, oH)
+        if (buf) compositeLayers.push({ input: buf, top: oTop, left: oLeft })
         break
       }
 
@@ -127,14 +127,12 @@ async function compositeV2({ sessionDir, photos, frameId, config, sessionData })
         if (layer.layerRole === 'dynamic-text' && sessionData) {
           textContent = substituteTokens(textContent, layer.dynamicField, sessionData)
         }
-        const svgBuf = renderTextToSvgBuffer(textContent, layer)
-        if (svgBuf) {
-          compositeLayers.push({
-            input: svgBuf,
-            top: Math.round(layer.top || 0),
-            left: Math.round(layer.left || 0),
-          })
-        }
+        const textLeft = Math.max(0, Math.round(layer.left || 0))
+        const textTop  = Math.max(0, Math.round(layer.top  || 0))
+        const maxTextW = canvasW - textLeft
+        const maxTextH = canvasH - textTop
+        const svgBuf = renderTextToSvgBuffer(textContent, layer, maxTextW, maxTextH)
+        if (svgBuf) compositeLayers.push({ input: svgBuf, top: textTop, left: textLeft })
         break
       }
     }
@@ -172,23 +170,22 @@ async function resolveImageLayer(frameId, layer, fitW, fitH) {
     if (fs.existsSync(framePng)) imagePath = framePng
   }
 
+  // NOTE: layer.width/height come from canvasToLayers which uses obj.getScaledWidth() —
+  // they are already the final rendered pixel size. Do NOT multiply by scaleX/Y again.
+
   // If layer has embedded base64 from fabric serialization
   if (!imagePath && layer.src?.startsWith('data:')) {
     const raw = layer.src.replace(/^data:image\/\w+;base64,/, '')
     const buf = Buffer.from(raw, 'base64')
-    const scaleX = layer.scaleX || 1
-    const scaleY = layer.scaleY || 1
-    const w = fitW || Math.round((layer.width || 100) * scaleX)
-    const h = fitH || Math.round((layer.height || 100) * scaleY)
+    const w = fitW || Math.round(layer.width || 100)
+    const h = fitH || Math.round(layer.height || 100)
     return sharp(buf).resize(w, h, { fit: 'fill' }).png().toBuffer()
   }
 
   if (!imagePath) return null
 
-  const scaleX = layer.scaleX || 1
-  const scaleY = layer.scaleY || 1
-  const w = fitW || Math.round((layer.width || 100) * scaleX)
-  const h = fitH || Math.round((layer.height || 100) * scaleY)
+  const w = fitW || Math.round(layer.width || 100)
+  const h = fitH || Math.round(layer.height || 100)
 
   return sharp(imagePath).resize(w, h, { fit: 'fill' }).png().toBuffer()
 }
@@ -208,7 +205,7 @@ function substituteTokens(text, dynamicField, data) {
     .replace('<<Studio Name>>', data.studioName || 'Photobooth')
 }
 
-function renderTextToSvgBuffer(text, layer) {
+function renderTextToSvgBuffer(text, layer, maxW = 4000, maxH = 4000) {
   if (!text) return null
   const fontSize = layer.fontSize || 32
   const fontFamily = layer.fontFamily || 'Arial'
@@ -217,10 +214,10 @@ function renderTextToSvgBuffer(text, layer) {
   const fontStyle = layer.fontStyle || 'normal'
   const textAnchor = layer.textAlign === 'center' ? 'middle' : layer.textAlign === 'right' ? 'end' : 'start'
 
-  // Estimate text dimensions
+  // Estimate text dimensions, clamped to available canvas space
   const charWidth = fontSize * 0.6
-  const w = Math.max(Math.ceil(text.length * charWidth) + 20, 50)
-  const h = Math.ceil(fontSize * 1.5)
+  const w = Math.min(Math.max(Math.ceil(text.length * charWidth) + 20, 50), Math.max(maxW, 1))
+  const h = Math.min(Math.ceil(fontSize * 1.5), Math.max(maxH, 1))
 
   const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 

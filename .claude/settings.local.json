@@ -25,7 +25,15 @@
       "WebFetch(domain:www.photoboothowners.com)",
       "WebFetch(domain:support.darkroomsoftware.com)",
       "WebFetch(domain:www.darkroomsoftware.com)",
-      "WebFetch(domain:help.simplebooth.com)"
+      "WebFetch(domain:help.simplebooth.com)",
+      "Bash(find /Users/boba/Documents/Project/photobooth-app/resources/frames -name \"config.json\" -exec echo \"=== {} ===\" ; -exec cat {} ;)",
+      "Bash(while read f)",
+      "Bash(do)",
+      "Bash(echo \"=== $f ===\")",
+      "Bash(python3 -c \":*)",
+      "Bash(done)",
+      "Bash(python3 -c \"from PIL import Image; img = Image.open\\(''/Users/boba/Documents/Project/photobooth-app/resources/frames/frame-1772970257095/frame.png''\\); print\\(img.size\\)\")",
+      "Bash(sips -g pixelHeight -g pixelWidth /Users/boba/Documents/Project/photobooth-app/resources/frames/frame-1772970257095/frame.png)"
     ]
   }
 }

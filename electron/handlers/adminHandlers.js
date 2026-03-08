@@ -109,6 +109,9 @@ export function getFrameList() {
           slots,
           thumbnailSlot: config.thumbnailSlot ?? 0,
           version: config.version ?? 1,
+          // Canvas dimensions (v2 only) — used by SelectFrame when no frame.png exists yet
+          canvasWidth:  config.version === 2 ? (config.canvas?.width  || 1200) : null,
+          canvasHeight: config.version === 2 ? (config.canvas?.height || 1800) : null,
         }
       })
       .filter(Boolean)

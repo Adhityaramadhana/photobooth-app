@@ -10,6 +10,24 @@ import {
   getPresetDimensions, inchesToPx, pxToInches, PAPER_PRESETS,
 } from '../../../utils/fabricHelpers'
 
+// ─── Icons ───────────────────────────────────────────────────────────────────
+const IconArrowLeft = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
+  </svg>
+)
+const IconCheck = () => (
+  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+)
+const IconSave = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+    <polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
+  </svg>
+)
+
 // Detect which paper preset matches given pixel dimensions
 function detectPreset(w, h, dpi) {
   for (const p of PAPER_PRESETS) {
@@ -24,7 +42,6 @@ function detectPreset(w, h, dpi) {
 export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
   const canvasRef = useRef(null)
 
-  // Layout state
   const [layout, setLayout] = useState({
     paperSize: '4x6',
     orientation: 'vertical',
@@ -36,11 +53,11 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
   const [layers, setLayers] = useState([])
   const [selectedLayerId, setSelectedLayerId] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [savedOk, setSavedOk] = useState(false)
   const [msg, setMsg] = useState('')
   const [templateName, setTemplateName] = useState(frameName || '')
   const [loaded, setLoaded] = useState(false)
 
-  // Load existing template config
   useEffect(() => {
     if (!frameId || loaded) return
     loadTemplate()
@@ -53,7 +70,6 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
 
       setTemplateName(config.name || frameName || '')
 
-      // v2 template with fabricJson
       if (config.version === 2 && config.fabricJson) {
         const w = config.canvas?.width || 1200
         const h = config.canvas?.height || 1800
@@ -63,7 +79,6 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
 
         setLayout({ paperSize: ps, orientation: ori, dpi, widthPx: w, heightPx: h })
 
-        // Wait for canvas to initialize with new dimensions
         await new Promise(r => setTimeout(r, 200))
         const canvas = canvasRef.current?.getCanvas()
         if (canvas) {
@@ -75,7 +90,7 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
         return
       }
 
-      // v1 legacy: load frame.png as overlay + slots as rects
+      // v1 legacy
       const { data: pngBase64 } = await window.electronAPI.frame.getPng(frameId)
       if (pngBase64) {
         try {
@@ -83,7 +98,6 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
           const imgW = img.width
           const imgH = img.height
 
-          // Determine best paper size from image aspect ratio
           let bestPaper = '4x6'
           let bestDiff = Infinity
           for (const [key, size] of Object.entries(PAPER_SIZES)) {
@@ -93,18 +107,11 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
 
           const size = PAPER_SIZES[bestPaper]
           const ori = size.width <= size.height ? 'vertical' : 'horizontal'
-          setLayout({
-            paperSize: bestPaper,
-            orientation: ori,
-            dpi: 300,
-            widthPx: size.width,
-            heightPx: size.height,
-          })
+          setLayout({ paperSize: bestPaper, orientation: ori, dpi: 300, widthPx: size.width, heightPx: size.height })
 
           await new Promise(r => setTimeout(r, 200))
           const canvas = canvasRef.current?.getCanvas()
           if (canvas) {
-            // Add slots first
             if (config.slots) {
               const scaleX = canvas.width / imgW
               const scaleY = canvas.height / imgH
@@ -114,10 +121,9 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
                   top: Math.round(slot.y * scaleY),
                   width: Math.round(slot.width * scaleX),
                   height: Math.round(slot.height * scaleY),
-                  fill: 'rgba(200, 200, 200, 0.25)',
+                  fill: 'rgba(233, 69, 96, 0.45)',
                   stroke: '#e94560',
-                  strokeWidth: 3,
-                  strokeDashArray: [10, 5],
+                  strokeWidth: 2,
                   rx: 4, ry: 4,
                   id: uid('slot'),
                   name: `Photo ${i + 1}`,
@@ -128,8 +134,6 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
                 canvas.add(rect)
               })
             }
-
-            // Add frame PNG as overlay on top
             img.set({
               left: 0, top: 0,
               scaleX: canvas.width / img.width,
@@ -178,6 +182,7 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
     if (!canvas || !frameId) return
 
     setSaving(true)
+    setMsg('')
     try {
       const config = buildTemplateConfig(canvas, {
         id: frameId,
@@ -187,7 +192,6 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
         orientation: layout.orientation,
       })
 
-      // Backward compat: extract slots for v1 consumers
       config.slots = config.layers
         .filter(l => l.layerRole === 'photo-slot')
         .sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0))
@@ -196,8 +200,39 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
 
       const result = await window.electronAPI.frame.saveConfig(frameId, config)
       if (result.success) {
-        setMsg('Saved!')
-        setTimeout(() => setMsg(''), 2000)
+        // ── Export frame preview PNG ─────────────────────────────────────────
+        // Hide photo-slot rects + clear canvas background so slot areas become
+        // transparent in the exported PNG. This lets SelectFrame show the live
+        // camera feed "through" the frame overlay in those areas.
+        try {
+          const slotObjs = canvas.getObjects().filter(o => o.layerRole === 'photo-slot')
+          slotObjs.forEach(o => { o.visible = false })
+
+          const savedBg = canvas.backgroundColor
+          canvas.backgroundColor = null   // transparent background for PNG export
+
+          // Reset viewport to identity so we export at full canvas resolution
+          const savedVPT = [...canvas.viewportTransform]
+          canvas.setViewportTransform([1, 0, 0, 1, 0, 0])
+          canvas.renderAll()
+
+          const pngDataUrl = canvas.toDataURL({ format: 'png' })
+
+          // Restore canvas state
+          canvas.setViewportTransform(savedVPT)
+          canvas.backgroundColor = savedBg
+          slotObjs.forEach(o => { o.visible = true })
+          canvas.renderAll()
+
+          await window.electronAPI.frame.uploadPng(frameId, pngDataUrl)
+        } catch (pngErr) {
+          console.warn('[TemplateEditor] Preview PNG export failed:', pngErr)
+          // Non-fatal — config is already saved; just no thumbnail
+        }
+        // ────────────────────────────────────────────────────────────────────
+
+        setSavedOk(true)
+        setTimeout(() => setSavedOk(false), 2500)
         onSave?.()
       } else {
         setMsg('Error: ' + (result.error || 'Unknown'))
@@ -209,7 +244,6 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
     }
   }
 
-  // Handle layout changes — save/restore canvas objects when dimensions change
   const handleLayoutChange = (newLayout) => {
     const canvas = canvasRef.current?.getCanvas()
     const dimChanged = newLayout.widthPx !== layout.widthPx || newLayout.heightPx !== layout.heightPx
@@ -219,11 +253,9 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
       return
     }
 
-    // Save current state before canvas re-init
     const json = canvas.toJSON(CUSTOM_PROPS)
     setLayout(newLayout)
 
-    // Restore after canvas re-init
     setTimeout(async () => {
       const c2 = canvasRef.current?.getCanvas()
       if (c2 && json) {
@@ -235,47 +267,72 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Top bar */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-brand-surface border-b border-white/10">
+    <div className="flex flex-col h-full bg-brand-primary">
+
+      {/* ── Top bar ── */}
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-brand-surface border-b border-white/8 flex-shrink-0">
+        {/* Back / breadcrumb */}
         <button
           onClick={onBack}
-          className="px-3 py-1 text-xs text-brand-text/60 hover:text-brand-text border border-white/10 rounded hover:border-white/30 transition"
+          className="flex items-center gap-1.5 text-brand-text/50 hover:text-brand-text transition-colors group"
         >
-          Back
+          <IconArrowLeft />
+          <span className="text-xs hidden sm:inline">Frame Manager</span>
         </button>
 
+        <span className="text-white/15 text-sm hidden sm:inline">/</span>
+
+        {/* Template name input */}
         <input
-          className="flex-1 max-w-xs px-3 py-1 bg-brand-primary border border-white/10 rounded text-sm text-brand-text focus:border-brand-secondary outline-none"
+          className="flex-1 max-w-xs px-2.5 py-1 bg-transparent border-b border-white/15 hover:border-white/30 focus:border-brand-secondary text-sm text-brand-text outline-none transition-colors placeholder-brand-text/25"
           value={templateName}
           onChange={(e) => setTemplateName(e.target.value)}
-          placeholder="Template name..."
+          placeholder="Template name…"
         />
 
-        {msg && <span className="text-green-400 text-xs">{msg}</span>}
+        {/* Status message */}
+        {msg && (
+          <span className="text-red-400 text-xs">{msg}</span>
+        )}
 
         <div className="flex-1" />
 
+        {/* Saved indicator */}
+        {savedOk && (
+          <div className="flex items-center gap-1.5 text-green-400 text-xs">
+            <IconCheck />
+            <span>Saved</span>
+          </div>
+        )}
+
+        {/* Canvas info */}
+        <span className="text-[10px] text-brand-text/25 font-mono hidden lg:inline">
+          {layout.widthPx} × {layout.heightPx} px · {layout.dpi} dpi
+        </span>
+
+        {/* Save button */}
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-5 py-1.5 bg-brand-secondary text-white text-sm rounded hover:opacity-90 transition disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-1.5 bg-brand-secondary text-white text-sm font-medium rounded-lg hover:bg-brand-secondary/90 transition-colors disabled:opacity-50"
         >
-          {saving ? 'Saving...' : 'Save'}
+          <IconSave />
+          {saving ? 'Saving…' : 'Save'}
         </button>
       </div>
 
-      {/* Toolbar */}
+      {/* ── Toolbar ── */}
       <EditorToolbar
         canvasRef={canvasRef}
         frameId={frameId}
         onSync={syncLayers}
       />
 
-      {/* Main area: 3-column layout */}
+      {/* ── Main 3-column area ── */}
       <div className="flex-1 flex min-h-0">
+
         {/* Left: Layers + Layout */}
-        <div className="w-52 flex-shrink-0 bg-brand-surface border-r border-white/10 flex flex-col overflow-hidden">
+        <div className="w-56 flex-shrink-0 bg-brand-surface border-r border-white/8 flex flex-col overflow-hidden">
           <div className="flex-1 min-h-0 overflow-y-auto">
             <LayerPanel
               layers={layers}
@@ -284,7 +341,7 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
               onSync={syncLayers}
             />
           </div>
-          <div className="border-t border-white/10 overflow-y-auto" style={{ maxHeight: '50%' }}>
+          <div className="border-t border-white/8 overflow-y-auto" style={{ maxHeight: '48%' }}>
             <LayoutPanel
               layout={layout}
               onLayoutChange={handleLayoutChange}
@@ -301,8 +358,8 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
           onLayersChange={setLayers}
         />
 
-        {/* Right: Properties Panel */}
-        <div className="w-56 flex-shrink-0 bg-brand-surface border-l border-white/10 overflow-hidden">
+        {/* Right: Properties */}
+        <div className="w-56 flex-shrink-0 bg-brand-surface border-l border-white/8 overflow-hidden">
           <PropertiesPanel
             canvasRef={canvasRef}
             selectedLayerId={selectedLayerId}

@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     startLiveView: () => ipcRenderer.invoke('camera:startLiveView'),
     stopLiveView: () => ipcRenderer.invoke('camera:stopLiveView'),
     capture: (outputDir) => ipcRenderer.invoke('camera:capture', outputDir),
+    // Webcam mode: renderer ambil snapshot canvas → kirim base64 → main simpan ke disk
+    saveWebcamFrame: (outputDir, base64) => ipcRenderer.invoke('camera:saveWebcamFrame', outputDir, base64),
     startHealthCheck: () => ipcRenderer.invoke('camera:startHealthCheck'),
     stopHealthCheck: () => ipcRenderer.invoke('camera:stopHealthCheck'),
     onDisconnected: (cb) => ipcRenderer.on('camera:disconnected', cb)

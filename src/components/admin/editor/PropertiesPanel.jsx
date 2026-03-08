@@ -1,11 +1,64 @@
 import { useState, useEffect, useCallback } from 'react'
 
+// ─── Small helpers ────────────────────────────────────────────────────────────
+function SectionHeader({ label }) {
+  return (
+    <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
+      <span className="text-[9px] font-semibold text-brand-text/30 uppercase tracking-widest whitespace-nowrap">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-white/6" />
+    </div>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <div className="px-3 mb-2">
+      {label && (
+        <label className="block text-[10px] text-brand-text/35 uppercase tracking-wider mb-1">
+          {label}
+        </label>
+      )}
+      {children}
+    </div>
+  )
+}
+
+const inp = 'w-full px-2 py-1 bg-brand-primary border border-white/10 rounded text-xs text-brand-text focus:border-brand-secondary outline-none transition-colors'
+
+function NumInput({ label, sub, value, onChange, min, max, className = '' }) {
+  return (
+    <div className={className}>
+      {(label || sub) && (
+        <div className="text-[9px] text-brand-text/25 mb-0.5">{sub || label}</div>
+      )}
+      <input
+        type="number"
+        className={inp}
+        value={value}
+        onChange={onChange}
+        min={min}
+        max={max}
+      />
+    </div>
+  )
+}
+
+// Empty state icon
+const IconSelect = () => (
+  <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M3 9h18M9 21V9" />
+  </svg>
+)
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function PropertiesPanel({ canvasRef, selectedLayerId }) {
   const [props, setProps] = useState(null)
 
   const getCanvas = () => canvasRef.current?.getCanvas()
 
-  // Read properties from selected object
   const readProps = useCallback(() => {
     const canvas = getCanvas()
     if (!canvas || !selectedLayerId) { setProps(null); return }
@@ -28,7 +81,6 @@ export default function PropertiesPanel({ canvasRef, selectedLayerId }) {
       locked: obj.locked || false,
     }
 
-    // Text-specific
     if (obj.type === 'text' || obj.type === 'i-text') {
       base.text = obj.text || ''
       base.fontSize = obj.fontSize || 32
@@ -40,7 +92,6 @@ export default function PropertiesPanel({ canvasRef, selectedLayerId }) {
       base.dynamicField = obj.dynamicField || ''
     }
 
-    // Rect (photo-slot)
     if (obj.type === 'rect') {
       base.fill = obj.fill || ''
       base.stroke = obj.stroke || ''
@@ -53,7 +104,6 @@ export default function PropertiesPanel({ canvasRef, selectedLayerId }) {
 
   useEffect(() => {
     readProps()
-
     const canvas = getCanvas()
     if (!canvas) return
     const handler = () => readProps()
@@ -62,7 +112,6 @@ export default function PropertiesPanel({ canvasRef, selectedLayerId }) {
     canvas.on('object:scaling', handler)
     canvas.on('object:rotating', handler)
     return () => {
-      if (!canvas) return
       canvas.off('object:modified', handler)
       canvas.off('object:moving', handler)
       canvas.off('object:scaling', handler)
@@ -77,60 +126,27 @@ export default function PropertiesPanel({ canvasRef, selectedLayerId }) {
     if (!obj) return
 
     switch (key) {
-      case 'name':
-        obj.name = value
-        break
-      case 'left':
-        obj.set('left', Number(value))
-        break
-      case 'top':
-        obj.set('top', Number(value))
-        break
-      case 'width':
-        obj.set('scaleX', Number(value) / obj.width)
-        break
-      case 'height':
-        obj.set('scaleY', Number(value) / obj.height)
-        break
-      case 'angle':
-        obj.set('angle', Number(value))
-        break
-      case 'opacity':
-        obj.set('opacity', Number(value) / 100)
-        break
-      case 'text':
-        obj.set('text', value)
-        break
-      case 'fontSize':
-        obj.set('fontSize', Number(value))
-        break
-      case 'fontFamily':
-        obj.set('fontFamily', value)
-        break
-      case 'fill':
-        obj.set('fill', value)
-        break
-      case 'textAlign':
-        obj.set('textAlign', value)
-        break
-      case 'fontWeight':
-        obj.set('fontWeight', value === 'bold' ? 'bold' : 'normal')
-        break
-      case 'fontStyle':
-        obj.set('fontStyle', value === 'italic' ? 'italic' : 'normal')
-        break
-      case 'stroke':
-        obj.set('stroke', value)
-        break
-      case 'strokeWidth':
-        obj.set('strokeWidth', Number(value))
-        break
+      case 'name': obj.name = value; break
+      case 'left': obj.set('left', Number(value)); break
+      case 'top': obj.set('top', Number(value)); break
+      case 'width': obj.set('scaleX', Number(value) / obj.width); break
+      case 'height': obj.set('scaleY', Number(value) / obj.height); break
+      case 'angle': obj.set('angle', Number(value)); break
+      case 'opacity': obj.set('opacity', Number(value) / 100); break
+      case 'text': obj.set('text', value); break
+      case 'fontSize': obj.set('fontSize', Number(value)); break
+      case 'fontFamily': obj.set('fontFamily', value); break
+      case 'fill': obj.set('fill', value); break
+      case 'textAlign': obj.set('textAlign', value); break
+      case 'fontWeight': obj.set('fontWeight', value === 'bold' ? 'bold' : 'normal'); break
+      case 'fontStyle': obj.set('fontStyle', value === 'italic' ? 'italic' : 'normal'); break
+      case 'stroke': obj.set('stroke', value); break
+      case 'strokeWidth': obj.set('strokeWidth', Number(value)); break
       case 'slotIndex':
         obj.slotIndex = Number(value)
         obj.name = `Photo ${Number(value) + 1}`
         break
-      default:
-        obj.set(key, value)
+      default: obj.set(key, value)
     }
 
     obj.setCoords()
@@ -138,165 +154,108 @@ export default function PropertiesPanel({ canvasRef, selectedLayerId }) {
     readProps()
   }
 
+  // ── Empty state ──
   if (!props) {
     return (
       <div className="flex flex-col h-full">
-        <div className="px-3 py-2 border-b border-white/10">
-          <h3 className="text-xs font-bold text-brand-text/60 uppercase tracking-wider">Properties</h3>
+        <div className="px-3 py-2 border-b border-white/8">
+          <h3 className="text-[10px] font-semibold text-brand-text/35 uppercase tracking-widest">Properties</h3>
         </div>
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-brand-text/20 text-xs">Select a layer</p>
+        <div className="flex-1 flex flex-col items-center justify-center gap-2.5 text-center px-4">
+          <div className="text-brand-text/10">
+            <IconSelect />
+          </div>
+          <p className="text-[10px] text-brand-text/20 leading-relaxed">
+            Select a layer to<br />edit its properties
+          </p>
         </div>
       </div>
     )
   }
 
-  const inputClass = 'w-full px-2 py-1 bg-brand-primary border border-white/10 rounded text-xs text-brand-text focus:border-brand-secondary outline-none'
-  const labelClass = 'text-[10px] text-brand-text/40 uppercase tracking-wider'
-  const rowClass = 'flex items-center gap-2'
-
   const isText = props.type === 'text' || props.type === 'i-text'
   const isSlot = props.layerRole === 'photo-slot'
 
+  const selectClass = `${inp} cursor-pointer`
+
   return (
     <div className="flex flex-col h-full">
-      <div className="px-3 py-2 border-b border-white/10">
-        <h3 className="text-xs font-bold text-brand-text/60 uppercase tracking-wider">Properties</h3>
+
+      {/* Header */}
+      <div className="px-3 py-2 border-b border-white/8 flex-shrink-0">
+        <h3 className="text-[10px] font-semibold text-brand-text/35 uppercase tracking-widest">Properties</h3>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
-        {/* Name */}
-        <div>
-          <label className={labelClass}>Name</label>
+      <div className="flex-1 overflow-y-auto pb-4">
+
+        {/* Layer name */}
+        <SectionHeader label="Layer" />
+        <Field label="Name">
           <input
-            className={inputClass}
+            className={inp}
             value={props.name}
             onChange={(e) => updateProp('name', e.target.value)}
           />
-        </div>
+        </Field>
 
-        {/* Position */}
-        <div>
-          <label className={labelClass}>Position</label>
-          <div className={rowClass}>
-            <div className="flex-1">
-              <span className="text-[9px] text-brand-text/30">X</span>
-              <input
-                type="number"
-                className={inputClass}
-                value={props.left}
-                onChange={(e) => updateProp('left', e.target.value)}
-              />
-            </div>
-            <div className="flex-1">
-              <span className="text-[9px] text-brand-text/30">Y</span>
-              <input
-                type="number"
-                className={inputClass}
-                value={props.top}
-                onChange={(e) => updateProp('top', e.target.value)}
-              />
-            </div>
+        {/* Transform */}
+        <SectionHeader label="Transform" />
+
+        <Field label="Position">
+          <div className="grid grid-cols-2 gap-1.5">
+            <NumInput sub="X" value={props.left} onChange={(e) => updateProp('left', e.target.value)} />
+            <NumInput sub="Y" value={props.top} onChange={(e) => updateProp('top', e.target.value)} />
+          </div>
+        </Field>
+
+        <Field label="Size">
+          <div className="grid grid-cols-2 gap-1.5">
+            <NumInput sub="W" value={props.width} onChange={(e) => updateProp('width', e.target.value)} />
+            <NumInput sub="H" value={props.height} onChange={(e) => updateProp('height', e.target.value)} />
+          </div>
+        </Field>
+
+        <div className="px-3 mb-2">
+          <div className="grid grid-cols-2 gap-1.5">
+            <NumInput label="Rotate°" value={props.angle} onChange={(e) => updateProp('angle', e.target.value)} />
+            <NumInput label="Opacity%" value={props.opacity} onChange={(e) => updateProp('opacity', e.target.value)} min={0} max={100} />
           </div>
         </div>
 
-        {/* Size */}
-        <div>
-          <label className={labelClass}>Size</label>
-          <div className={rowClass}>
-            <div className="flex-1">
-              <span className="text-[9px] text-brand-text/30">W</span>
-              <input
-                type="number"
-                className={inputClass}
-                value={props.width}
-                onChange={(e) => updateProp('width', e.target.value)}
-              />
-            </div>
-            <div className="flex-1">
-              <span className="text-[9px] text-brand-text/30">H</span>
-              <input
-                type="number"
-                className={inputClass}
-                value={props.height}
-                onChange={(e) => updateProp('height', e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Rotate & Opacity */}
-        <div className={rowClass}>
-          <div className="flex-1">
-            <label className={labelClass}>Rotate</label>
-            <input
-              type="number"
-              className={inputClass}
-              value={props.angle}
-              onChange={(e) => updateProp('angle', e.target.value)}
-            />
-          </div>
-          <div className="flex-1">
-            <label className={labelClass}>Opacity %</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              className={inputClass}
-              value={props.opacity}
-              onChange={(e) => updateProp('opacity', e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Photo Slot specific */}
+        {/* Photo slot */}
         {isSlot && (
           <>
-            <div className="w-full h-px bg-white/10" />
-            <div>
-              <label className={labelClass}>Slot Index (Photo #)</label>
+            <SectionHeader label="Photo Slot" />
+            <Field label="Photo Order (index)">
               <input
                 type="number"
                 min="0"
-                className={inputClass}
+                className={inp}
                 value={props.slotIndex}
                 onChange={(e) => updateProp('slotIndex', e.target.value)}
               />
-            </div>
-            <div>
-              <label className={labelClass}>Slot Fill</label>
-              <input
-                type="color"
-                className="w-8 h-6 cursor-pointer bg-transparent border-0"
-                value={props.fill?.startsWith('#') ? props.fill : '#cccccc'}
-                onChange={(e) => updateProp('fill', e.target.value + '40')}
-              />
-            </div>
+            </Field>
           </>
         )}
 
-        {/* Text specific */}
+        {/* Text */}
         {isText && (
           <>
-            <div className="w-full h-px bg-white/10" />
+            <SectionHeader label="Text" />
 
-            {/* Text content (only for static text) */}
             {props.layerRole === 'static-text' && (
-              <div>
-                <label className={labelClass}>Text</label>
+              <Field label="Content">
                 <input
-                  className={inputClass}
+                  className={inp}
                   value={props.text}
                   onChange={(e) => updateProp('text', e.target.value)}
                 />
-              </div>
+              </Field>
             )}
 
-            {/* Font family */}
-            <div>
-              <label className={labelClass}>Font</label>
+            <Field label="Font Family">
               <select
-                className={inputClass}
+                className={selectClass}
                 value={props.fontFamily}
                 onChange={(e) => updateProp('fontFamily', e.target.value)}
               >
@@ -304,82 +263,98 @@ export default function PropertiesPanel({ canvasRef, selectedLayerId }) {
                   <option key={f} value={f}>{f}</option>
                 ))}
               </select>
-            </div>
+            </Field>
 
-            {/* Font size */}
-            <div>
-              <label className={labelClass}>Font Size</label>
-              <input
-                type="number"
-                min="8"
-                max="200"
-                className={inputClass}
-                value={props.fontSize}
-                onChange={(e) => updateProp('fontSize', e.target.value)}
-              />
-            </div>
-
-            {/* Color */}
-            <div>
-              <label className={labelClass}>Color</label>
-              <div className="flex items-center gap-2">
+            <div className="px-3 mb-2 grid grid-cols-2 gap-1.5">
+              <div>
+                <label className="block text-[10px] text-brand-text/35 uppercase tracking-wider mb-1">Size</label>
                 <input
-                  type="color"
-                  className="w-8 h-6 cursor-pointer bg-transparent border-0"
-                  value={props.fill}
-                  onChange={(e) => updateProp('fill', e.target.value)}
+                  type="number" min="8" max="400"
+                  className={inp}
+                  value={props.fontSize}
+                  onChange={(e) => updateProp('fontSize', e.target.value)}
                 />
-                <input
-                  className={inputClass}
-                  value={props.fill}
-                  onChange={(e) => updateProp('fill', e.target.value)}
-                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-brand-text/35 uppercase tracking-wider mb-1">Color</label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="color"
+                    className="w-7 h-[26px] cursor-pointer rounded border border-white/10 bg-transparent flex-shrink-0"
+                    value={props.fill?.startsWith('#') ? props.fill : '#333333'}
+                    onChange={(e) => updateProp('fill', e.target.value)}
+                  />
+                  <input
+                    className={`${inp} min-w-0 font-mono text-[10px]`}
+                    value={props.fill}
+                    onChange={(e) => updateProp('fill', e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Text Align */}
-            <div>
-              <label className={labelClass}>Align</label>
+            <Field label="Style">
               <div className="flex gap-1">
-                {['left', 'center', 'right'].map(a => (
-                  <button
-                    key={a}
-                    onClick={() => updateProp('textAlign', a)}
-                    className={`flex-1 px-2 py-1 text-[10px] rounded border transition ${
-                      props.textAlign === a
-                        ? 'bg-brand-secondary border-brand-secondary text-white'
-                        : 'bg-brand-surface border-white/10 text-brand-text/60 hover:border-white/30'
-                    }`}
-                  >
-                    {a}
-                  </button>
-                ))}
+                {/* Bold */}
+                <button
+                  onClick={() => updateProp('fontWeight', props.fontWeight === 'bold' ? 'normal' : 'bold')}
+                  className={`flex-1 py-1 text-xs font-bold rounded border transition-colors ${
+                    props.fontWeight === 'bold'
+                      ? 'bg-brand-secondary border-brand-secondary text-white'
+                      : 'border-white/10 text-brand-text/45 hover:border-white/25'
+                  }`}
+                >
+                  B
+                </button>
+                {/* Italic */}
+                <button
+                  onClick={() => updateProp('fontStyle', props.fontStyle === 'italic' ? 'normal' : 'italic')}
+                  className={`flex-1 py-1 text-xs italic rounded border transition-colors ${
+                    props.fontStyle === 'italic'
+                      ? 'bg-brand-secondary border-brand-secondary text-white'
+                      : 'border-white/10 text-brand-text/45 hover:border-white/25'
+                  }`}
+                >
+                  I
+                </button>
+                {/* Align left */}
+                <button
+                  onClick={() => updateProp('textAlign', 'left')}
+                  className={`flex-1 py-1 rounded border transition-colors text-[11px] ${
+                    props.textAlign === 'left'
+                      ? 'bg-brand-secondary/20 border-brand-secondary/50 text-brand-secondary'
+                      : 'border-white/10 text-brand-text/30 hover:border-white/25'
+                  }`}
+                  title="Align left"
+                >
+                  ⇤
+                </button>
+                {/* Align center */}
+                <button
+                  onClick={() => updateProp('textAlign', 'center')}
+                  className={`flex-1 py-1 rounded border transition-colors text-[11px] ${
+                    props.textAlign === 'center'
+                      ? 'bg-brand-secondary/20 border-brand-secondary/50 text-brand-secondary'
+                      : 'border-white/10 text-brand-text/30 hover:border-white/25'
+                  }`}
+                  title="Align center"
+                >
+                  ≡
+                </button>
+                {/* Align right */}
+                <button
+                  onClick={() => updateProp('textAlign', 'right')}
+                  className={`flex-1 py-1 rounded border transition-colors text-[11px] ${
+                    props.textAlign === 'right'
+                      ? 'bg-brand-secondary/20 border-brand-secondary/50 text-brand-secondary'
+                      : 'border-white/10 text-brand-text/30 hover:border-white/25'
+                  }`}
+                  title="Align right"
+                >
+                  ⇥
+                </button>
               </div>
-            </div>
-
-            {/* Bold / Italic */}
-            <div className="flex gap-1">
-              <button
-                onClick={() => updateProp('fontWeight', props.fontWeight === 'bold' ? 'normal' : 'bold')}
-                className={`flex-1 px-2 py-1 text-xs font-bold rounded border transition ${
-                  props.fontWeight === 'bold'
-                    ? 'bg-brand-secondary border-brand-secondary text-white'
-                    : 'bg-brand-surface border-white/10 text-brand-text/60 hover:border-white/30'
-                }`}
-              >
-                B
-              </button>
-              <button
-                onClick={() => updateProp('fontStyle', props.fontStyle === 'italic' ? 'normal' : 'italic')}
-                className={`flex-1 px-2 py-1 text-xs italic rounded border transition ${
-                  props.fontStyle === 'italic'
-                    ? 'bg-brand-secondary border-brand-secondary text-white'
-                    : 'bg-brand-surface border-white/10 text-brand-text/60 hover:border-white/30'
-                }`}
-              >
-                I
-              </button>
-            </div>
+            </Field>
           </>
         )}
       </div>

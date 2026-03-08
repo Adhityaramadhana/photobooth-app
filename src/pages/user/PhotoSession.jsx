@@ -10,6 +10,7 @@ export default function PhotoSession() {
   const navigate = useNavigate()
   const {
     selectedFrame,
+    currentSessionDir,
     setCurrentSessionDir,
     addCapturedPhoto,
     setLiveViewActive,
@@ -19,44 +20,97 @@ export default function PhotoSession() {
 
   const totalPhotos = selectedFrame?.slots?.length ?? 1
 
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)  // foto ke-berapa (0-based)
-  const [countdown, setCountdown] = useState(null)                // null = tidak countdown
-  const [phase, setPhase] = useState('init')                      // init | liveview | countdown | flash | done
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
+  const [countdown, setCountdown] = useState(null)
+  const [phase, setPhase] = useState('init')
   const [flash, setFlash] = useState(false)
   const [error, setError] = useState(null)
 
   const liveViewInterval = useRef(null)
   const sessionInitialized = useRef(false)
+  const sessionDirRef = useRef(null)    // ref supaya startPhotoStep tidak stale
 
-  // Poll live view frames
-  const startLiveViewPolling = useCallback(() => {
-    liveViewInterval.current = setInterval(async () => {
-      try {
-        const url = `http://localhost:5513/liveview.jpg?t=${Date.now()}`
-        setLiveViewFrameUrl(url)
-      } catch {
-        // ignore poll errors
+  // Webcam refs
+  const webcamStreamRef = useRef(null)
+  const webcamVideoRef = useRef(null)
+  const webcamCanvasRef = useRef(null)
+  const isWebcamRef = useRef(false)
+
+  // ── Start live view (handle webcam + real + mock) ────────────────────────────
+  const startLiveViewForStep = useCallback(async () => {
+    const res = await window.electronAPI.camera.startLiveView()
+    if (!res.success) throw new Error(res.error || 'startLiveView failed')
+    setLiveViewActive(true)
+
+    if (res.webcam) {
+      // Webcam belum running? buka stream baru
+      if (!webcamStreamRef.current) {
+        const video = document.createElement('video')
+        video.muted = true
+        video.playsInline = true
+        webcamVideoRef.current = video
+
+        const canvas = document.createElement('canvas')
+        webcamCanvasRef.current = canvas
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+          audio: false,
+        })
+        webcamStreamRef.current = stream
+        video.srcObject = stream
+        await video.play()
       }
-    }, 100)
+
+      // Encode frame ke data URL tiap ~100ms → dipakai oleh live view img
+      liveViewInterval.current = setInterval(() => {
+        const video = webcamVideoRef.current
+        const canvas = webcamCanvasRef.current
+        if (!video || !canvas || video.readyState < 2 || video.videoWidth === 0) return
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        canvas.getContext('2d').drawImage(video, 0, 0)
+        setLiveViewFrameUrl(canvas.toDataURL('image/jpeg', 0.75))
+      }, 100)
+
+    } else if (res.mock) {
+      // Picsum statis — set sekali
+      setLiveViewFrameUrl(res.framePath)
+    } else {
+      // Kamera real — polling liveview.jpg
+      liveViewInterval.current = setInterval(() => {
+        setLiveViewFrameUrl(`${res.framePath}?t=${Date.now()}`)
+      }, 100)
+    }
   }, [])
 
-  const stopLiveViewPolling = useCallback(() => {
+  const stopLiveViewForStep = useCallback(async () => {
     if (liveViewInterval.current) {
       clearInterval(liveViewInterval.current)
       liveViewInterval.current = null
     }
+    await window.electronAPI.camera.stopLiveView()
+    setLiveViewActive(false)
   }, [])
 
-  // Init session dan mulai foto pertama
+  // ── Init session ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (sessionInitialized.current) return
     sessionInitialized.current = true
+
+    // Cek apakah webcam mode
+    window.electronAPI.camera.startLiveView().then(res => {
+      isWebcamRef.current = !!res.webcam
+      // Stop lagi — nanti dibuka ulang di startPhotoStep
+      window.electronAPI.camera.stopLiveView().catch(() => {})
+    })
 
     const init = async () => {
       try {
         const dir = await window.electronAPI.app.getSessionDir()
         setCurrentSessionDir(dir)
-        await startPhotoStep(0)
+        sessionDirRef.current = dir
+        await startPhotoStep(0, dir)
       } catch (e) {
         setError('Gagal inisialisasi sesi: ' + e.message)
       }
@@ -64,27 +118,29 @@ export default function PhotoSession() {
     init()
 
     return () => {
-      stopLiveViewPolling()
+      if (liveViewInterval.current) clearInterval(liveViewInterval.current)
+      // Stop webcam stream saat unmount
+      webcamStreamRef.current?.getTracks().forEach(t => t.stop())
+      webcamStreamRef.current = null
       window.electronAPI.camera.stopLiveView().catch(() => {})
       setLiveViewActive(false)
     }
   }, [])
 
-  const startPhotoStep = async (photoIndex) => {
+  // ── Foto step ─────────────────────────────────────────────────────────────────
+  const startPhotoStep = async (photoIndex, sessionDir) => {
+    const dir = sessionDir ?? sessionDirRef.current
     setCurrentPhotoIndex(photoIndex)
     setPhase('liveview')
 
-    // Start live view
     try {
-      await window.electronAPI.camera.startLiveView()
-      setLiveViewActive(true)
-      startLiveViewPolling()
+      await startLiveViewForStep()
     } catch {
       setError('Gagal memulai live view')
       return
     }
 
-    // Countdown
+    // Countdown 3-2-1
     setPhase('countdown')
     for (let i = COUNTDOWN_SECONDS; i >= 1; i--) {
       setCountdown(i)
@@ -92,21 +148,38 @@ export default function PhotoSession() {
     }
     setCountdown(null)
 
-    // Capture
+    // Flash + capture
     setPhase('flash')
     setFlash(true)
-    stopLiveViewPolling()
-    await window.electronAPI.camera.stopLiveView()
-    setLiveViewActive(false)
+    await stopLiveViewForStep()
 
     let filePath = null
     try {
-      const result = await window.electronAPI.camera.capture()
+      let result
+
+      if (isWebcamRef.current) {
+        // ── Webcam capture: snapshot canvas → base64 → simpan via IPC ──
+        const video = webcamVideoRef.current
+        const canvas = webcamCanvasRef.current
+        if (!video || !canvas) throw new Error('Webcam not ready')
+
+        const snapCanvas = document.createElement('canvas')
+        snapCanvas.width = video.videoWidth
+        snapCanvas.height = video.videoHeight
+        snapCanvas.getContext('2d').drawImage(video, 0, 0)
+        const base64 = snapCanvas.toDataURL('image/jpeg', 0.95)
+
+        result = await window.electronAPI.camera.saveWebcamFrame(dir, base64)
+      } else {
+        // ── Mock / real camera capture ──
+        result = await window.electronAPI.camera.capture(dir)
+      }
+
       if (result.success) {
         filePath = result.filePath
         addCapturedPhoto(filePath)
       } else {
-        setError('Capture gagal')
+        setError('Capture gagal: ' + (result.error || ''))
         return
       }
     } catch (e) {
@@ -120,14 +193,18 @@ export default function PhotoSession() {
     const nextIndex = photoIndex + 1
     if (nextIndex < totalPhotos) {
       await sleep(INTER_PHOTO_DELAY_MS)
-      await startPhotoStep(nextIndex)
+      await startPhotoStep(nextIndex, dir)
     } else {
+      // Matikan webcam stream setelah semua foto selesai
+      webcamStreamRef.current?.getTracks().forEach(t => t.stop())
+      webcamStreamRef.current = null
       setPhase('done')
       await sleep(800)
       navigate('/processing')
     }
   }
 
+  // ── Error screen ──────────────────────────────────────────────────────────────
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-6">
@@ -142,6 +219,7 @@ export default function PhotoSession() {
     )
   }
 
+  // ── Main UI ───────────────────────────────────────────────────────────────────
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden">
       {/* Flash overlay */}
@@ -155,7 +233,7 @@ export default function PhotoSession() {
           src={liveViewFrameUrl}
           alt="Live View"
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ transform: 'scaleX(-1)' }} // mirror seperti kamera selfie
+          style={{ transform: 'scaleX(-1)' }}
         />
       ) : (
         <div className="absolute inset-0 bg-brand-primary" />

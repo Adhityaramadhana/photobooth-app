@@ -47,7 +47,7 @@ export default function Result() {
                 className="aspect-[4/3] bg-brand-surface rounded-xl overflow-hidden"
               >
                 <img
-                  src={`file://${photoPath}`}
+                  src={encodeURI(`file://${photoPath}`)}
                   alt={`Foto ${i + 1}`}
                   className="w-full h-full object-cover"
                 />

@@ -85,12 +85,32 @@ const EditorCanvas = forwardRef(function EditorCanvas({ canvasWidth, canvasHeigh
         if (obj.layerRole === 'photo-slot' && obj.visible !== false) {
           const center = obj.getCenterPoint()
           const zoom = canvas.getZoom()
+          const cx = center.x * zoom
+          const cy = center.y * zoom
+          const label = String((obj.slotIndex ?? 0) + 1)
+          const fontSize = Math.round(52 * zoom)
+
           ctx.save()
-          ctx.font = `bold ${Math.round(48 * zoom)}px Arial`
-          ctx.fillStyle = 'rgba(0,0,0,0.4)'
+          ctx.font = `bold ${fontSize}px Arial`
           ctx.textAlign = 'center'
           ctx.textBaseline = 'middle'
-          ctx.fillText(`${(obj.slotIndex ?? 0) + 1}`, center.x * zoom, center.y * zoom)
+
+          // Pill background behind number for max readability
+          const metrics = ctx.measureText(label)
+          const padX = fontSize * 0.55
+          const padY = fontSize * 0.35
+          const bw = metrics.width + padX * 2
+          const bh = fontSize + padY * 2
+          const br = bh / 2
+
+          ctx.beginPath()
+          ctx.roundRect(cx - bw / 2, cy - bh / 2, bw, bh, br)
+          ctx.fillStyle = 'rgba(233, 69, 96, 0.88)'
+          ctx.fill()
+
+          // White number
+          ctx.fillStyle = '#ffffff'
+          ctx.fillText(label, cx, cy)
           ctx.restore()
         }
       })
@@ -138,9 +158,14 @@ const EditorCanvas = forwardRef(function EditorCanvas({ canvasWidth, canvasHeigh
   return (
     <div
       ref={wrapperRef}
-      className="flex-1 min-h-0 flex items-center justify-center bg-[#0d0d1a] overflow-hidden"
+      className="flex-1 min-h-0 flex items-center justify-center overflow-auto"
+      style={{ backgroundColor: '#dde1e9' }}
     >
-      <div className="shadow-2xl">
+      {/* Canvas sits like paper on a desk — shadow + subtle border distinguish it */}
+      <div
+        className="shadow-xl flex-shrink-0"
+        style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10)' }}
+      >
         <canvas ref={canvasElRef} />
       </div>
     </div>
