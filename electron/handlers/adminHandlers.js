@@ -93,11 +93,22 @@ export function getFrameList() {
         const cfgPath = path.join(dir, d.name, 'config.json')
         const config = readJson(cfgPath, null)
         if (!config) return null
+
+        // v2 config: extract slots from layers
+        let slots = config.slots ?? []
+        if (config.version === 2 && config.layers) {
+          slots = config.layers
+            .filter(l => l.layerRole === 'photo-slot')
+            .sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0))
+            .map(l => ({ x: l.left, y: l.top, width: l.width, height: l.height }))
+        }
+
         return {
           id: d.name,
           name: config.name ?? d.name,
-          slots: config.slots ?? [],
-          thumbnailSlot: config.thumbnailSlot ?? 0
+          slots,
+          thumbnailSlot: config.thumbnailSlot ?? 0,
+          version: config.version ?? 1,
         }
       })
       .filter(Boolean)
@@ -253,6 +264,56 @@ export function deleteVoucher(code) {
     return { success: false, error: err.message }
   }
 }
+
+// ── Frame Asset Management (images for template layers) ──────────────────────
+
+export function uploadFrameAsset(frameId, fileName, base64Data) {
+  try {
+    const assetsDir = path.join(framesDir(), frameId, 'assets')
+    fs.mkdirSync(assetsDir, { recursive: true })
+    const raw = base64Data.replace(/^data:image\/\w+;base64,/, '')
+    fs.writeFileSync(path.join(assetsDir, fileName), Buffer.from(raw, 'base64'))
+    return { success: true, fileName }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+}
+
+export function getFrameAsset(frameId, fileName) {
+  try {
+    const filePath = path.join(framesDir(), frameId, 'assets', fileName)
+    if (!fs.existsSync(filePath)) return { data: null }
+    const buffer = fs.readFileSync(filePath)
+    const ext = path.extname(fileName).toLowerCase()
+    const mime = ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png'
+    return { data: `data:${mime};base64,${buffer.toString('base64')}` }
+  } catch (err) {
+    return { data: null, error: err.message }
+  }
+}
+
+export function listFrameAssets(frameId) {
+  try {
+    const assetsDir = path.join(framesDir(), frameId, 'assets')
+    if (!fs.existsSync(assetsDir)) return { files: [] }
+    const files = fs.readdirSync(assetsDir).filter(f => /\.(png|jpg|jpeg|gif|webp)$/i.test(f))
+    return { files }
+  } catch (err) {
+    return { files: [], error: err.message }
+  }
+}
+
+export function deleteFrameAsset(frameId, fileName) {
+  try {
+    const filePath = path.join(framesDir(), frameId, 'assets', fileName)
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+}
+
+// ── Voucher Validation ───────────────────────────────────────────────────────
 
 export function validateVoucher(code) {
   try {

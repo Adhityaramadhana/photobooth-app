@@ -39,6 +39,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     uploadPng: (id, data) => ipcRenderer.invoke('frame:uploadPng', id, data),
     delete: (id) => ipcRenderer.invoke('frame:delete', id),
     getPng: (id) => ipcRenderer.invoke('frame:getPng', id),
+    uploadAsset: (id, name, data) => ipcRenderer.invoke('frame:uploadAsset', id, name, data),
+    getAsset: (id, name) => ipcRenderer.invoke('frame:getAsset', id, name),
+    listAssets: (id) => ipcRenderer.invoke('frame:listAssets', id),
+    deleteAsset: (id, name) => ipcRenderer.invoke('frame:deleteAsset', id, name),
   },
 
   db: {

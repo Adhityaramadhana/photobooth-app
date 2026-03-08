@@ -12,7 +12,20 @@
       "Bash(CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --dir)",
       "WebFetch(domain:support.lumasoft.co)",
       "WebFetch(domain:dslrbooth.com)",
-      "WebFetch(domain:bizbooth.eu)"
+      "WebFetch(domain:bizbooth.eu)",
+      "WebFetch(domain:fabricjs.com)",
+      "WebFetch(domain:medium.com)",
+      "Bash(npm run dev)",
+      "Bash(npx electron-vite build)",
+      "Bash(node -e \"const f = require\\(''fabric''\\); console.log\\(''fabric version:'', f.version || ''loaded''\\)\")",
+      "Bash(node -e \":*)",
+      "WebFetch(domain:breezesoftware.com)",
+      "WebFetch(domain:manuals.breezesoftware.com)",
+      "WebFetch(domain:help.breezesoftware.com)",
+      "WebFetch(domain:www.photoboothowners.com)",
+      "WebFetch(domain:support.darkroomsoftware.com)",
+      "WebFetch(domain:www.darkroomsoftware.com)",
+      "WebFetch(domain:help.simplebooth.com)"
     ]
   }
 }

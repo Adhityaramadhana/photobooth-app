@@ -22,6 +22,10 @@ import {
   uploadFramePng,
   deleteFrame,
   getFramePng,
+  uploadFrameAsset,
+  getFrameAsset,
+  listFrameAssets,
+  deleteFrameAsset,
   getGallery,
   getTransactions,
   logTransaction,
@@ -105,6 +109,10 @@ ipcMain.handle('frame:saveConfig', (_, id, config) => saveFrameConfig(id, config
 ipcMain.handle('frame:uploadPng', (_, id, data) => uploadFramePng(id, data))
 ipcMain.handle('frame:delete', (_, id) => deleteFrame(id))
 ipcMain.handle('frame:getPng', (_, id) => getFramePng(id))
+ipcMain.handle('frame:uploadAsset', (_, id, name, data) => uploadFrameAsset(id, name, data))
+ipcMain.handle('frame:getAsset', (_, id, name) => getFrameAsset(id, name))
+ipcMain.handle('frame:listAssets', (_, id) => listFrameAssets(id))
+ipcMain.handle('frame:deleteAsset', (_, id, name) => deleteFrameAsset(id, name))
 
 // ── IPC: Gallery & Transactions ───────────────────────────────────────────────
 ipcMain.handle('admin:getGallery', () => getGallery())
