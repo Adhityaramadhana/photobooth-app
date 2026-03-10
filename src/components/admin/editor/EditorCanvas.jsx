@@ -84,11 +84,12 @@ const EditorCanvas = forwardRef(function EditorCanvas({ canvasWidth, canvasHeigh
       canvas.getObjects().forEach(obj => {
         if (obj.layerRole === 'photo-slot' && obj.visible !== false) {
           const center = obj.getCenterPoint()
-          const zoom = canvas.getZoom()
-          const cx = center.x * zoom
-          const cy = center.y * zoom
+          // We keep fabric zoom at 1 and scale the entire canvas via CSS,
+          // so labels are drawn directly in canvas coordinate space.
+          const cx = center.x
+          const cy = center.y
           const label = String((obj.slotIndex ?? 0) + 1)
-          const fontSize = Math.round(52 * zoom)
+          const fontSize = 52
 
           ctx.save()
           ctx.font = `bold ${fontSize}px Arial`
@@ -146,11 +147,14 @@ const EditorCanvas = forwardRef(function EditorCanvas({ canvasWidth, canvasHeigh
     const maxH = wrapper.clientHeight - padding
     if (maxW <= 0 || maxH <= 0) return
 
-    const zoom = Math.min(maxW / canvas.width, maxH / canvas.height, 1)
-    canvas.setZoom(zoom)
+    const scale = Math.min(maxW / canvas.width, maxH / canvas.height, 1)
+
+    // Keep fabric zoom at 1 (logical coordinates stay in real pixel units)
+    // and scale the <canvas> element via CSS only. This avoids double
+    // scaling (zoom * CSS) when the app window is resized.
     canvas.setDimensions({
-      width: canvas.width * zoom,
-      height: canvas.height * zoom,
+      width: canvas.width * scale,
+      height: canvas.height * scale,
     }, { cssOnly: true })
     canvas.renderAll()
   }

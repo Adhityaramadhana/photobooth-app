@@ -3,16 +3,16 @@
 ## Stack
 | Layer | Tech |
 |-------|------|
-| Runtime | Electron 29 |
-| Build tool | electron-vite 2.3 |
-| UI | React 18 + Vite 5 |
+| Runtime | Electron 40 |
+| Build tool | electron-vite 5 + Vite 7 |
+| UI | React 18 |
 | Styling | Tailwind CSS 3 |
 | State | Zustand 4 |
 | Routing | React Router DOM 6 (HashRouter) |
-| Camera API | digiCamControl HTTP (port 5513) |
+| Camera API | digiCamControl HTTP (port 5513) + Webcam/Mock |
 | HTTP client (main) | node-fetch 2 (CJS) |
-| Canvas compositor | fabric.js 7 (ADMIN ONLY — bukan user flow) |
-| Local DB | JSON files via fs (settings, voucher, transaksi) |
+| Canvas editor & compositor | fabric.js 7 (ADMIN ONLY — bukan user flow) |
+| Local DB | JSON files via fs (settings, voucher, transaksi di `userData/database`) |
 
 ## Critical Config Notes
 - Config file: **`electron.vite.config.js`** (pakai titik, BUKAN `electron-vite.config.js`)
@@ -70,7 +70,7 @@ Mode Select (pilih Admin)
 │ masuk AdminLogin (password)
 ▼
 Admin Dashboard
-├── Frame Manager      — upload PNG, atur posisi slot (fabric.js)
+├── Frame Manager      — buat/edit template frame (fabric.js, multi-layer)
 ├── Gallery            — lihat semua sesi foto + download
 ├── Transaksi          — riwayat pembayaran & sesi
 ├── Voucher Manager    — generate kode, set pakai/expiry
@@ -83,35 +83,32 @@ Admin Dashboard
 
 ## Routes (React Router — HashRouter)
 
-### Entry
+### Entry & User Routes
 | Path | Component | Navigasi |
 |------|-----------|----------|
-| `/` | ModeSelect | → `/idle` (User) atau `/admin` (Admin) |
-
-### User Routes
-| Path | Component | Navigasi |
-|------|-----------|----------|
+| `/` | ModeSelect | → `/idle` (User) atau `/admin/login` (Admin) |
 | `/idle` | IdleScreen | → `/payment` (tap layar) |
 | `/payment` | Payment | → `/select-frame` (bayar/voucher confirmed) |
 | `/select-frame` | SelectFrame | → `/photo-session` (tap frame) |
 | `/photo-session` | PhotoSession | → `/processing` (semua foto selesai) |
-| `/processing` | Processing | → `/result` (selesai composite + upload) |
+| `/processing` | Processing | → `/result` (selesai composite + upload + print) |
 | `/result` | Result | → `/idle` (timeout / tap selesai) |
 
 ### Admin Routes
 | Path | Component | Navigasi |
 |------|-----------|----------|
-| `/admin` | AdminLogin | → `/admin/dashboard` (password benar) |
-| `/admin/dashboard` | AdminDashboard | hub ke semua sub-menu |
-| `/admin/frames` | AdminFrameManager | editor posisi slot di frame |
+| `/admin/login` | AdminLogin | → `/admin/frames` (password benar) |
+| `/admin` | AdminLayout | layout + route guard (redirect ke `/admin/login` jika belum login) |
+| `/admin/frames` | AdminFrameManager | kelola template frame + editor canvas |
 | `/admin/gallery` | AdminGallery | lihat sesi foto & download |
 | `/admin/transactions` | AdminTransactions | riwayat transaksi |
 | `/admin/vouchers` | AdminVouchers | generate & manage kode voucher |
 | `/admin/payment` | AdminPaymentSettings | Midtrans API key, harga |
 | `/admin/printer` | AdminPrinterSettings | konfigurasi printer |
-| `/admin/branding` | AdminBrandingSettings | nama studio, logo, warna |
+| `/admin/branding` | AdminBrandingSettings | nama studio, branding, PIN admin |
+| `/admin/cloud` | AdminCloudSettings | konfigurasi Firebase Storage untuk upload hasil |
 
-**Route guard:** Admin routes cek auth state. Jika belum login redirect ke `/admin`.
+**Route guard:** Semua child route di bawah `/admin` cek `adminAuthenticated`. Jika belum login redirect ke `/admin/login`.
 
 ## Folder Structure
 ```
@@ -139,14 +136,14 @@ photobooth-app/
 │   │   │   └── Result.jsx
 │   │   └── admin/
 │   │       ├── AdminLogin.jsx
-│   │       ├── AdminDashboard.jsx
 │   │       ├── AdminFrameManager.jsx
 │   │       ├── AdminGallery.jsx
 │   │       ├── AdminTransactions.jsx
 │   │       ├── AdminVouchers.jsx
 │   │       ├── AdminPaymentSettings.jsx
 │   │       ├── AdminPrinterSettings.jsx
-│   │       └── AdminBrandingSettings.jsx
+│   │       ├── AdminBrandingSettings.jsx
+│   │       └── AdminCloudSettings.jsx
 │   ├── components/
 │   │   ├── Layout.jsx             # User layout + exit button
 │   │   └── AdminLayout.jsx        # Admin layout + sidebar nav + logout
@@ -155,20 +152,15 @@ photobooth-app/
 │   ├── App.jsx
 │   ├── main.jsx
 │   └── index.css
-├── resources/
+├── resources/                      # Asset default (boleh kosong di repo, dibuat/isi manual)
 │   ├── mock/
-│   │   └── sample-capture.jpg
+│   │   └── sample-capture.jpg     # Contoh foto utk MOCK_MODE capture & GIF fallback
 │   └── frames/
-│       ├── frame-001/
-│       │   ├── frame.png
-│       │   └── config.json
-│       └── frame-002/
-│           ├── frame.png
-│           └── config.json
+│       └── frame-xxx/             # Tiap frame tersimpan di folder sendiri
+│           ├── frame.png          # Overlay untuk SelectFrame (auto-generate dari editor)
+│           └── config.json        # Config template (v2) hasil Admin Frame Manager
 ├── database/
-│   ├── settings.json              # Midtrans key, harga, branding, printer
-│   ├── vouchers.json              # Daftar kode voucher
-│   └── transactions.json          # Log transaksi
+│   └── settings.json              # Seed: Midtrans key, harga, branding, printer, admin PIN, Firebase
 ├── index.html
 ├── electron.vite.config.js
 ├── tailwind.config.js
@@ -191,29 +183,34 @@ photobooth-app/
 }
 ```
 
-### Database Format
+### Database Format (seed → disalin ke `userData/database/*.json`)
 
-**`database/settings.json`**
+**`database/settings.json` (seed)** 
 ```json
 {
   "midtrans": { "serverKey": "", "clientKey": "", "isProduction": false },
   "pricing": { "sessionPrice": 30000 },
   "printer": { "name": "", "copies": 1 },
-  "branding": { "studioName": "Photobooth", "primaryColor": "#e94560" }
+  "branding": { "studioName": "Photobooth", "primaryColor": "#e94560" },
+  "admin": { "password": "admin123" },
+  "firebase": { "apiKey": "", "storageBucket": "" }
 }
 ```
+Di runtime:
+- `userData/database/vouchers.json` dan `transactions.json` dibuat otomatis jika belum ada.
+- Formatnya mengikuti contoh di bawah (satu array JSON).
 
-**`database/vouchers.json`**
+**`vouchers.json` (runtime)**
 ```json
 [
-  { "code": "FREE001", "type": "free", "usedCount": 0, "maxUse": 1, "expiresAt": null }
+  { "code": "FREE001", "type": "free", "discount": 0, "usedCount": 0, "maxUse": 1, "expiresAt": null }
 ]
 ```
 
-**`database/transactions.json`**
+**`transactions.json` (runtime)** 
 ```json
 [
-  { "id": "sess-001", "timestamp": "", "method": "qris", "amount": 30000, "frame": "frame-001", "photos": [] }
+  { "id": "sess-001", "timestamp": "", "method": "qris", "amount": 30000, "frame": "frame-001", "photoCount": 4 }
 ]
 ```
 
@@ -229,7 +226,8 @@ photobooth-app/
 | `paymentStatus` | `'pending'`\|`'paid'`\|null | Status pembayaran |
 | `paymentMethod` | `'qris'`\|`'voucher'`\|null | Metode pembayaran yang dipilih |
 | `liveFrameBuffer` | array | Buffer frames untuk GIF |
-| `resultQrUrl` | string\|null | URL QR code hasil upload |
+| `resultQrUrl` | string\|null | URL hasil di cloud (untuk QR) |
+| `resultQrImage` | string\|null | DataURL PNG QR code yang ditampilkan di Result |
 | `processingStep` | string\|null | Step processing aktif |
 
 ### Camera State
@@ -255,51 +253,66 @@ Renderer (window.electronAPI.xxx)
 ```
 
 ### Available IPC Methods
-| Channel | Handler | Response |
-|---------|---------|----------|
+| Channel | Handler | Response (utama) |
+|---------|---------|------------------|
 | `ping` | `main.js` | `'pong'` |
-| `camera:checkService` | `cameraHandlers` | `{ running, mock? }` |
+| `app:getSessionDir` | `main.js` | path direktori sesi baru (`userData/sessions/<timestamp>`) |
+| `app:readFileAsDataUrl` | `main.js` | DataURL file gambar (dipakai di Result) |
+| `camera:checkService` | `cameraHandlers` | `{ running, mock?: boolean }` |
 | `camera:getList` | `cameraHandlers` | `{ cameras[] }` |
-| `camera:connect` | `cameraHandlers` | `{ success, model }` |
-| `camera:startLiveView` | `cameraHandlers` | `{ success }` |
+| `camera:connect` | `cameraHandlers` | `{ success, model, mock?, webcam? }` |
+| `camera:startLiveView` | `cameraHandlers` | `{ success, framePath?, mock?, webcam? }` |
 | `camera:stopLiveView` | `cameraHandlers` | `{ success }` |
-| `camera:capture` | `cameraHandlers` | `{ success, filePath }` |
-| `camera:startHealthCheck` | `cameraHandlers` | starts interval |
-| `camera:stopHealthCheck` | `cameraHandlers` | clears interval |
-| `app:getSessionDir` | `main.js` | session directory path |
-| `frame:getList` | `adminHandlers` | `{ frames[] }` |
-| `frame:getConfig` | `adminHandlers` | `{ config }` |
+| `camera:capture` | `cameraHandlers` | `{ success, filePath }` (DSLR / MOCK_MODE) |
+| `camera:saveWebcamFrame` | `cameraHandlers` | `{ success, filePath }` (snapshot webcam dari renderer) |
+| `camera:saveLiveFrame` | `cameraHandlers` | `{ success, filePath }` (frame untuk GIF/boomerang) |
+| `camera:startHealthCheck` | `cameraHandlers` | start interval health check (kirim event `camera:disconnected`) |
+| `camera:stopHealthCheck` | `cameraHandlers` | stop interval |
+| `frame:getList` | `adminHandlers` | `{ frames[] }` (baca semua `config.json` dan normalisasi slots) |
+| `frame:getConfig` | `adminHandlers` | `{ config }` (untuk TemplateEditor) |
 | `frame:saveConfig` | `adminHandlers` | `{ success }` |
-| `frame:uploadPng` | `adminHandlers` | `{ success, frameId }` |
+| `frame:uploadPng` | `adminHandlers` | `{ success, frameId }` (simpan preview PNG overlay) |
 | `frame:delete` | `adminHandlers` | `{ success }` |
-| `composite:run` | `compositeHandlers` | `{ success, filePath }` |
-| `gif:generate` | `gifHandlers` | `{ success, filePath }` |
-| `print:send` | `printHandlers` | `{ success }` |
-| `upload:toCloud` | `uploadHandlers` | `{ success, qrUrl }` |
-| `payment:createOrder` | `paymentHandlers` | `{ success, qrUrl, orderId }` |
-| `payment:checkStatus` | `paymentHandlers` | `{ paid: boolean }` |
-| `voucher:validate` | `paymentHandlers` | `{ valid, type }` |
-| `admin:verifyPassword` | `adminHandlers` | `{ success }` |
-| `admin:getSettings` | `adminHandlers` | `{ settings }` |
+| `frame:getPng` | `adminHandlers` | `{ data }` (DataURL PNG overlay) |
+| `frame:uploadAsset` | `adminHandlers` | `{ success }` (simpan asset tambahan ke `assets/`) |
+| `frame:getAsset` | `adminHandlers` | `{ data }` (DataURL asset) |
+| `frame:listAssets` | `adminHandlers` | `{ assets[] }` |
+| `frame:deleteAsset` | `adminHandlers` | `{ success }` |
+| `admin:verifyPassword` | `adminHandlers` | `{ success }` (cek PIN admin) |
+| `admin:getSettings` | `adminHandlers` | `{ settings }` (bootstrap dari seed jika belum ada) |
 | `admin:saveSettings` | `adminHandlers` | `{ success }` |
-| `admin:getGallery` | `adminHandlers` | `{ sessions[] }` |
+| `admin:getGallery` | `adminHandlers` | `{ sessions[] }` (scan `userData/sessions`) |
 | `admin:getTransactions` | `adminHandlers` | `{ transactions[] }` |
+| `db:logTransaction` | `adminHandlers` | `{ success }` (prepend transaksi baru) |
 | `admin:getVouchers` | `adminHandlers` | `{ vouchers[] }` |
 | `admin:saveVoucher` | `adminHandlers` | `{ success }` |
 | `admin:deleteVoucher` | `adminHandlers` | `{ success }` |
-| `db:logTransaction` | `adminHandlers` | `{ success }` |
+| `voucher:validate` | `adminHandlers` | `{ valid, type, discount, error? }` (auto update `usedCount`) |
+| `payment:createOrder` | `paymentHandlers` | `{ success, orderId, qrImageBase64, mock? }` |
+| `payment:checkStatus` | `paymentHandlers` | `{ paid, mock? }` |
+| `composite:run` | `compositeHandlers` | `{ success, filePath }` (hasil composite PNG/JPG) |
+| `gif:generate` | `gifHandlers` | `{ success, filePath }` (GIF dari live-frames) |
+| `gif:generateBoomerang` | `gifHandlers` | `{ success, filePath }` (GIF boomerang) |
+| `upload:toCloud` | `uploadHandlers` | `{ success, qrUrl, qrImageBase64 }` |
+| `print:send` | `printHandlers` | `{ success }` |
 
 ### Events (main → renderer)
 | Event | Trigger |
 |-------|---------|
 | `camera:disconnected` | Health check fails 3x |
 
-## Mock Mode
-- Toggle: `MOCK_MODE = true` di `electron/handlers/cameraHandlers.js`
-- Mock model: `Canon EOS 800D (Mock)`
-- Live view: gambar statis dari `https://picsum.photos/1280/800`
-- Capture: copy `resources/mock/sample-capture.jpg` ke session dir (delay 2s)
-- Health check: skipped di mock mode
+## Camera Modes (Mock & Webcam)
+- Toggle ada di `electron/handlers/cameraHandlers.js`:
+  - `WEBCAM_MODE = true` → pakai webcam lokal via `getUserMedia` (dev/testing termudah).
+  - `MOCK_MODE = true` → pakai gambar statis dari internet, capture dari file sample.
+  - Keduanya `false` → mode DSLR real via digiCamControl HTTP.
+- Mock details:
+  - Mock model: `Canon EOS 800D (Mock)`
+  - Live view (MOCK_MODE): gambar statis dari `https://picsum.photos/800/1200`
+  - Capture (MOCK_MODE): copy `resources/mock/sample-capture.jpg` ke session dir (delay 2s).
+- Webcam mode:
+  - Live view & capture dilakukan di renderer (canvas + `getUserMedia`), hasil snapshot dikirim ke main lewat `camera:saveWebcamFrame` / `camera:saveLiveFrame`.
+- Health check hanya aktif di mode DSLR real (bukan mock/webcam).
 
 ## Electron Security
 - `contextIsolation: true`
@@ -325,27 +338,51 @@ npm run build:win  # Build installer Windows
 
 ## Admin Frame Manager (fabric.js v7)
 - **ADMIN ONLY**
-- Canvas size: 1800x1200
-- Admin upload frame PNG → background canvas
-- Admin drag & drop rectangle → posisi slot foto
-- Setiap rectangle = 1 slot (`x, y, width, height`)
-- Simpan → `config.json` via IPC `frame:saveConfig`
-- fabric.js v7 API: `new fabric.Canvas()`, `new fabric.Rect()`, `canvas.dispose()`
+- Editor full template (bukan cuma slot):
+  - Canvas size fleksibel, ditentukan oleh layout:
+    - Paper presets: 2x6, 4x6, 5x7, 6x8, 6x9, 8x10, dll (`PAPER_PRESETS`).
+    - DPI default 300, orientation vertical/horizontal.
+  - Layer types:
+    - `background` (gambar latar penuh).
+    - `overlay` (frame dekoratif di atas slot).
+    - `photo-slot` (rect area tempat foto user di-composite).
+    - `static-text` dan `dynamic-text` (tanggal, waktu, session id, studio name).
+- Flow kerja:
+  - Admin pilih / buat template frame di `AdminFrameManager`.
+  - Klik "Edit" → buka `TemplateEditor`:
+    - Canvas centre, kiri: Layer list + Layout panel, kanan: Properties panel.
+    - Toolbar bisa tambah slot, background, overlay, teks statis/dinamis, dll.
+  - Editor otomatis me-resize view:
+    - Fabric canvas tetap di ukuran pixel aslinya (misal 1200x1800).
+    - Zoom hanya lewat CSS scaling (tidak mengubah coordinate system).
+  - Saat Save:
+    - `buildTemplateConfig(canvas, meta)` → `config.version = 2`:
+      - `canvas`: width, height, dpi, orientation, paperSize, backgroundColor.
+      - `layers`: semua objek dengan properti tambahan (`layerRole`, `slotIndex`, dll).
+      - `fabricJson`: JSON penuh untuk restore 1:1.
+    - `config.slots` diisi ulang berdasar layer `photo-slot` (dengan transform jika overlay keluar canvas).
+    - `frame:saveConfig` menulis `config.json`.
+    - Editor sembunyikan slot + background transparent + auto-fit overlay/background → export PNG via `canvas.toDataURL()` → `frame:uploadPng`.
+    - PNG ini dipakai di halaman `SelectFrame` sebagai overlay, sementara slot dipakai untuk posisi foto saat composite.
 
 ## PhotoSession — Background Live Frame Recording
-- Saat countdown berjalan, simpan frame live view tiap ~100ms
-- Frame disimpan ke `sessionDir/live-frames/foto-N/frame-XXX.jpg`
-- Setelah semua foto selesai → `gif:generate` dari Processing page
-- User hanya lihat: live view + countdown + flash 📸
+- Saat countdown berjalan, renderer merekam frame live view (webcam/DSLR) tiap ~200ms.
+- Frame disimpan via `camera:saveLiveFrame` ke:
+  - `sessionDir/live-frames/photo-N/frame-XXXX.jpg`
+- Setelah semua foto selesai:
+  - Halaman `Processing` memanggil:
+    - `gif:generate` → GIF utama.
+    - `gif:generateBoomerang` → GIF boomerang (forward + reverse).
+- User hanya lihat: live view + countdown + flash 📸 (tanpa tahu proses background).
 
 ## Phase Status
 - **Fase 1** ✅ — Skeleton project, routing, store, IPC ping
-- **Fase 2** ✅ — Camera handlers (mock), halaman lama (sudah diganti)
-- **Fase 3** ✅ — Editor fabric.js (dipindah ke Admin Flow)
+- **Fase 2** ✅ — Camera handlers (mock/webcam/DSLR), halaman lama diganti flow baru
+- **Fase 3** ✅ — Editor fabric.js v7 (Admin Frame Manager, template v2)
 - **Fase 4** ✅ — Restructure UI: ModeSelect, user flow baru, exit button, store update
-- **Fase 5** 🔲 — Admin flow: Login, Dashboard + sidebar, Frame Manager, Gallery, Transaksi, Voucher, Settings
-- **Fase 6** 🔲 — Composite, GIF generation, print, cloud upload, QR result
-- **Fase 7** 🔲 — Payment: Midtrans QRIS + Voucher system
-- **Fase 8** 🔲 — Polish, error handling, build production
+- **Fase 5** ✅ — Admin flow: Login, sidebar dashboard, Frame Manager, Gallery, Transaksi, Voucher, Settings (Payment/Printer/Branding/Cloud)
+- **Fase 6** ✅ — Composite, GIF + Boomerang generation, print, cloud upload, QR result
+- **Fase 7** ✅ — Payment: Midtrans QRIS (mock & real) + Voucher system
+- **Fase 8** 🔲 — Polish final, hardening, error handling, build/installer production
 
 - JANGAN install: `fluent-ffmpeg`, `better-sqlite3`, `napi-canon-cameras`
