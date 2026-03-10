@@ -200,33 +200,40 @@ function FrameCard({ frame, onEdit, onDelete }) {
 
   const slotCount = frame.slots?.length ?? 0
   const isV2 = frame.version === 2
+  const aspectRatio = frame.canvasWidth && frame.canvasHeight
+    ? frame.canvasHeight / frame.canvasWidth
+    : 4 / 6
 
   return (
     <div
       className="group relative bg-brand-surface rounded-xl border border-white/8 overflow-hidden hover:border-white/20 transition-all duration-200 cursor-pointer"
       onClick={onEdit}
     >
-      {/* Thumbnail */}
-      <div className="aspect-[3/4] bg-[#0d0d1a] flex items-center justify-center overflow-hidden relative">
+      {/* Thumbnail (full-bleed, follow card border) */}
+      <div
+        className="relative w-full bg-[#050515] overflow-hidden"
+        style={{ paddingBottom: `${aspectRatio * 100}%` }}
+      >
         {thumb ? (
           <img
             src={thumb}
             alt={frame.name}
-            className="w-full h-full object-contain"
+            className="absolute inset-0 w-full h-full object-contain"
             draggable={false}
           />
         ) : (
-          <div className="flex flex-col items-center gap-2 text-brand-text/8 select-none">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-brand-text/8 select-none bg-[#0d0d1a]">
             <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
             </svg>
+            <span className="text-[10px] uppercase tracking-wide">No preview</span>
           </div>
         )}
 
         {/* Hover overlay */}
         <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-secondary rounded-lg text-white text-xs font-medium shadow-lg">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-secondary rounded-md text-white text-xs font-medium shadow-lg">
             <IconEdit />
             Open Editor
           </div>
@@ -243,14 +250,14 @@ function FrameCard({ frame, onEdit, onDelete }) {
 
         {/* Slot count badge */}
         {slotCount > 0 && (
-          <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded text-[10px] text-white/60">
+          <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 px-2 py-0.5 bg-black/65 backdrop-blur-sm rounded text-[10px] text-white/60">
             {slotCount} photo{slotCount !== 1 ? 's' : ''}
           </div>
         )}
 
         {/* v2 badge */}
         {isV2 && (
-          <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-brand-secondary/85 rounded text-[9px] text-white font-semibold tracking-wide">
+          <div className="absolute top-2.5 left-2.5 px-1.5 py-0.5 bg-brand-secondary/90 rounded text-[9px] text-white font-semibold tracking-wide">
             v2
           </div>
         )}
