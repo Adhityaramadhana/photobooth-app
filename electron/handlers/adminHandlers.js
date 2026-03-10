@@ -52,14 +52,26 @@ function ensureSettings() {
       writeJson(p, DEFAULT_SETTINGS)
     }
   }
-  return readJson(p, DEFAULT_SETTINGS)
+  const settings = readJson(p, DEFAULT_SETTINGS)
+
+  // Dev mode: sync admin password dari seed supaya perubahan di project langsung berlaku
+  const seedPath = path.join(__dirname, '../../database/settings.json')
+  if (fs.existsSync(seedPath)) {
+    const seed = readJson(seedPath, {})
+    if (seed?.admin?.password && seed.admin.password !== settings?.admin?.password) {
+      settings.admin = { ...settings.admin, password: seed.admin.password }
+      writeJson(p, settings)
+    }
+  }
+
+  return settings
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 export function verifyPassword(password) {
   const settings = ensureSettings()
-  const correct = settings?.admin?.password ?? 'admin123'
+  const correct = settings?.admin?.password ?? '1234'
   return { success: password === correct }
 }
 

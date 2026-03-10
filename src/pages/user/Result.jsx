@@ -14,7 +14,7 @@ export default function Result() {
 
   const handleFinish = () => {
     clearSession()
-    navigate('/')
+    navigate('/idle')
   }
 
   // Auto-return countdown

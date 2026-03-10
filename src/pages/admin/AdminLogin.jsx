@@ -2,28 +2,50 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useAppStore from '../../store/useAppStore'
 
+const PIN_LENGTH = 4
+
 export default function AdminLogin() {
   const navigate = useNavigate()
   const setAdminAuthenticated = useAppStore((s) => s.setAdminAuthenticated)
-  const [password, setPassword] = useState('')
+  const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [shake, setShake] = useState(false)
 
-  const handleLogin = async (e) => {
-    e.preventDefault()
-    if (!password) return
+  const handleDigit = (digit) => {
+    if (pin.length >= PIN_LENGTH || loading) return
+    const next = pin + digit
+    setPin(next)
+    setError('')
+
+    if (next.length === PIN_LENGTH) {
+      submitPin(next)
+    }
+  }
+
+  const handleDelete = () => {
+    if (loading) return
+    setPin((p) => p.slice(0, -1))
+    setError('')
+  }
+
+  const submitPin = async (value) => {
     setLoading(true)
     setError('')
     try {
-      const { success } = await window.electronAPI.admin.verifyPassword(password)
+      const { success } = await window.electronAPI.admin.verifyPassword(value)
       if (success) {
         setAdminAuthenticated(true)
         navigate('/admin/frames')
       } else {
-        setError('Password salah')
+        setShake(true)
+        setTimeout(() => setShake(false), 500)
+        setError('PIN salah')
+        setPin('')
       }
     } catch {
-      setError('Gagal verifikasi password')
+      setError('Gagal verifikasi')
+      setPin('')
     } finally {
       setLoading(false)
     }
@@ -34,38 +56,59 @@ export default function AdminLogin() {
       <div className="flex flex-col items-center gap-2">
         <span className="text-4xl">⚙️</span>
         <h1 className="text-3xl font-bold text-brand-text">Admin Login</h1>
+        <p className="text-brand-text/40 text-sm">Masukkan PIN 4 digit</p>
       </div>
 
-      <form onSubmit={handleLogin} className="flex flex-col gap-4 w-80">
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Masukkan password"
-          className="px-4 py-3 bg-brand-surface border border-white/10 rounded-xl text-brand-text placeholder-white/30 focus:outline-none focus:border-brand-secondary"
-          autoFocus
-        />
+      {/* PIN dots */}
+      <div className={`flex gap-4 ${shake ? 'animate-shake' : ''}`}>
+        {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+          <div
+            key={i}
+            className={`w-5 h-5 rounded-full border-2 transition-all duration-150 ${
+              i < pin.length
+                ? 'bg-brand-secondary border-brand-secondary scale-110'
+                : 'bg-transparent border-white/20'
+            }`}
+          />
+        ))}
+      </div>
 
-        {error && (
-          <p className="text-red-400 text-sm text-center">{error}</p>
-        )}
+      {error && <p className="text-red-400 text-sm -mt-4">{error}</p>}
 
+      {/* Numpad */}
+      <div className="grid grid-cols-3 gap-3 w-72">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+          <button
+            key={n}
+            onClick={() => handleDigit(String(n))}
+            className="h-16 bg-brand-surface border border-white/10 rounded-2xl text-2xl font-semibold text-brand-text active:bg-brand-secondary active:scale-95 transition select-none"
+          >
+            {n}
+          </button>
+        ))}
+
+        {/* Bottom row: back, 0, delete */}
         <button
-          type="submit"
-          disabled={loading || !password}
-          className="py-3 bg-brand-secondary text-white rounded-xl font-semibold disabled:opacity-50 transition active:scale-95"
-        >
-          {loading ? 'Memverifikasi...' : 'Login'}
-        </button>
-
-        <button
-          type="button"
           onClick={() => navigate('/')}
-          className="py-2 text-brand-text/30 hover:text-brand-text/60 text-sm transition"
+          className="h-16 rounded-2xl text-sm text-brand-text/30 active:text-brand-text/60 transition select-none"
         >
-          ← Kembali
+          Kembali
         </button>
-      </form>
+
+        <button
+          onClick={() => handleDigit('0')}
+          className="h-16 bg-brand-surface border border-white/10 rounded-2xl text-2xl font-semibold text-brand-text active:bg-brand-secondary active:scale-95 transition select-none"
+        >
+          0
+        </button>
+
+        <button
+          onClick={handleDelete}
+          className="h-16 rounded-2xl text-2xl text-brand-text/50 active:text-brand-text active:scale-95 transition select-none"
+        >
+          ⌫
+        </button>
+      </div>
     </div>
   )
 }
