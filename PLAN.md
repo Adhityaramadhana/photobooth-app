@@ -1,140 +1,112 @@
-# Restructure Plan — Pemisahan Flow User & Admin
+# Photobooth App — Project Plan & Status
 
-## Masalah
-Flow sekarang salah: `Home → LiveMode → ShutterMode → Editor → Payment → Delivery`
-- User & Admin campur jadi satu
-- Editor (fabric.js) seharusnya tool admin, bukan user
-- Payment harusnya setelah idle, bukan setelah editor
-- LiveMode harusnya background process, bukan halaman terpisah
+## Completed Phases
 
-## Flow yang Benar
+### Fase 1 ✅ — Foundation
+- Skeleton project Electron + React + Tailwind
+- Routing (HashRouter), Zustand store, IPC ping
 
-### USER Flow (touchscreen kiosk, tanpa keyboard/mouse)
+### Fase 2 ✅ — Camera System
+- Camera handlers: Mock mode, Webcam mode, DSLR (digiCamControl)
+- Live view, capture, health check
+- Halaman lama diganti flow baru
+
+### Fase 3 ✅ — Frame Editor (Admin)
+- fabric.js v7 template editor
+- Multi-layer: background, overlay, photo-slot, text (static/dynamic)
+- Paper presets, DPI, orientation
+- Auto-export PNG overlay + config.json v2
+- OOB slot transform (overlay keluar canvas)
+
+### Fase 4 ✅ — UI Restructure
+- ModeSelect: pilih User / Admin
+- User flow: Idle → Payment → SelectFrame → PhotoSession → Processing → Result
+- Exit button, fullscreen, store update
+
+### Fase 5 ✅ — Admin Panel
+- AdminLogin (password gate)
+- AdminLayout (sidebar nav + route guard)
+- Frame Manager, Gallery, Transaksi, Voucher
+- Settings: Payment, Printer, Branding, Cloud
+
+### Fase 6 ✅ — Processing Pipeline
+- Composite foto + frame (sharp)
+- GIF + Boomerang generation
+- Cloud upload (Firebase Storage)
+- QR code result
+- Auto print
+
+### Fase 7 ✅ — Payment
+- Midtrans QRIS (mock & real)
+- Voucher system (free/discount, max use, expiry)
+- Transaction logging
+
+### Fase 8 🔄 — Polish & Hardening (in progress)
+
+#### Done
+- ✅ Webcam mirror: capture & GIF frame di-flip horizontal (konsisten dengan preview)
+- ✅ Branding system overhaul:
+  - Load branding SEKALI di startup → Zustand → semua page baca dari store (no flash)
+  - Fitur baru: logo upload, tagline, background warna/gambar
+  - Warna aksen dinamis via CSS variable (hanya halaman user)
+  - ModeSelect & Admin panel tidak terpengaruh custom aksen
+- ✅ Admin unsaved changes guard:
+  - Dirty state tracking (form vs saved snapshot)
+  - Sticky "unsaved changes" bar di atas form
+  - Navigation blocker dialog di sidebar AdminLayout
+  - beforeunload warning (close tab/window)
+- ✅ Fix password admin: hapus seed sync yang overwrite password baru
+
+#### Remaining TODO (Fase 8)
+- 🔲 Error handling & recovery di semua halaman user
+  - Camera disconnect mid-session
+  - Network error saat payment/upload
+  - Timeout handling
+- 🔲 Loading states & skeleton screens
+- 🔲 Keyboard support untuk voucher input (on-screen keyboard / native)
+- 🔲 Konfigurasi countdown timer (3/5/10 detik, dari admin settings)
+- 🔲 Auto-return timeout di Result page (configurable)
+- 🔲 Session cleanup (hapus session lama otomatis)
+- 🔲 Build & installer production (electron-builder)
+- 🔲 App icon & splash screen
+- 🔲 Final testing semua flow end-to-end
+
+## Architecture Notes
+
+### Branding Flow
 ```
-Idle Screen → tap → Payment (QRIS) → Pilih Frame → Foto Session (auto) → Processing → Hasil (QR) → Idle
+App startup
+  → loadBranding() [Zustand action]
+    → admin:getSettings [IPC]
+    → branding:getLogo + branding:getBgImage [IPC, parallel]
+    → set branding state + brandingLoaded = true
+  → render routes (setelah brandingLoaded)
+
+Admin save branding
+  → admin:saveSettings [IPC]
+  → branding:uploadLogo / branding:uploadBgImage [IPC]
+  → loadBranding() [refresh global state]
+  → semua user pages langsung update
 ```
 
-### ADMIN Flow (password protected, pakai mouse)
+### Accent Color Scoping
 ```
-Password → Dashboard → Frame Manager | Payment Settings | Printer Settings | Branding
-```
+:root (index.css)
+  --brand-secondary: #e94560  ← default, used by admin panel & ModeSelect
 
-## Perubahan yang Dilakukan
-
-### 1. Update CLAUDE.md
-- Hapus dokumentasi flow lama
-- Tulis flow baru (user & admin terpisah)
-- Update folder structure, routes, store schema
-- Update IPC methods yang berubah
-
-### 2. Restructure Halaman (src/pages/)
-
-**Hapus:**
-- `Home.jsx` → ganti jadi `IdleScreen.jsx`
-- `LiveMode.jsx` → hapus (jadi background di PhotoSession)
-
-**Rename/Ubah total:**
-- `ShutterMode.jsx` → ganti jadi `PhotoSession.jsx` (multi-foto + live recording background)
-- `Editor.jsx` → pindah ke `admin/FrameEditor.jsx` (admin-only)
-- `Payment.jsx` → tetap tapi pindah posisi di flow (setelah idle)
-- `Delivery.jsx` → ganti jadi `Results.jsx` (QR code + auto print)
-
-**Buat baru:**
-- `PickFrame.jsx` — grid frame untuk user pilih
-- `Processing.jsx` — layar tunggu (composite + upload + print)
-- `admin/AdminLogin.jsx` — password gate
-- `admin/AdminDashboard.jsx` — menu admin
-- `admin/FrameEditor.jsx` — fabric.js canvas (dari Editor.jsx lama)
-
-### 3. Update Routes (App.jsx)
-
-```
-USER ROUTES:
-/                → IdleScreen
-/payment         → Payment (QRIS)
-/pick-frame      → PickFrame
-/session         → PhotoSession (multi-foto + background recording)
-/processing      → Processing (composite, upload, print)
-/results         → Results (QR code)
-
-ADMIN ROUTES:
-/admin           → AdminLogin
-/admin/dashboard → AdminDashboard
-/admin/frames    → FrameEditor (fabric.js)
+Layout.jsx (user routes only: /idle, /payment, ...)
+  style="--brand-secondary: {branding.primaryColor}"  ← override untuk user pages
+  → semua child component pakai warna custom
+  → admin panel tetap pakai default
 ```
 
-### 4. Update Zustand Store (useAppStore.js)
+### Navigation Guard (Admin)
+```
+AdminBrandingSettings
+  → track dirty state (form vs savedForm, logo, bgImage)
+  → useEffect → setAdminDirtyGuard(dirty) [Zustand]
 
-**Tambah:**
-- `appMode`: `'user'` | `'admin'`
-- `selectedFrameData`: object dengan info rectangles dari admin
-- `sessionPhotos`: array of { index, photoPath, gifFrames[] }
-- `currentPhotoIndex`: number (foto ke berapa dalam session)
-- `totalPhotos`: number (jumlah rectangle di frame)
-- `sessionPhase`: `'idle'` | `'payment'` | `'pick-frame'` | `'session'` | `'processing'` | `'results'`
-
-**Hapus/Ubah:**
-- `deliveryMethod` → hapus (delivery otomatis QR + print)
-- `liveViewFrameUrl` → tetap tapi konteksnya berubah
-
-### 5. Halaman Baru — Detail
-
-**IdleScreen.jsx:**
-- Fullscreen branding (logo + nama studio)
-- Tap anywhere → navigate ke /payment
-- Hidden: ketuk 5x pojok kanan atas → buka /admin
-
-**PickFrame.jsx:**
-- Grid thumbnail frame dari `editor:getFrameCategories`
-- Tap frame → simpan ke store → navigate ke /session
-- Info: "Frame ini punya X slot foto"
-
-**PhotoSession.jsx (gabungan LiveMode + ShutterMode):**
-- Loop N kali (sesuai jumlah rectangle di frame)
-- Tiap loop:
-  1. Live camera preview (cermin)
-  2. Timer countdown (configurable: 3/5/10 detik)
-  3. 2-3 detik terakhir: background save live view frames → untuk GIF
-  4. Capture foto
-  5. Brief preview (1-2 detik)
-  6. Lanjut ke foto berikutnya atau selesai
-- Otomatis navigate ke /processing setelah semua foto selesai
-
-**Processing.jsx:**
-- "Sedang memproses foto..."
-- Composite semua foto ke dalam frame (sesuai rectangle positions)
-- Generate GIF dari saved frames
-- Upload ke cloud
-- Print otomatis
-- Navigate ke /results
-
-**Results.jsx:**
-- QR code di layar → user scan di HP
-- Countdown timeout (30 detik?) → auto kembali ke idle
-- Tombol "Selesai" → clearSession → navigate /
-
-### 6. Yang TIDAK berubah
-- electron/main.js — IPC registration tetap (tambah handler baru nanti)
-- electron/preload.js — tambah method baru nanti
-- electron/handlers/cameraHandlers.js — tetap
-- electron/handlers/editorHandlers.js — tetap (dipakai admin)
-- resources/ — tetap
-- Config files — tetap
-- Tailwind — tetap
-
-### 7. Urutan Eksekusi
-1. Update CLAUDE.md dulu (dokumentasi baru)
-2. Buat folder `src/pages/admin/`
-3. Buat `IdleScreen.jsx` (ganti Home.jsx)
-4. Update `Payment.jsx` (posisi baru di flow)
-5. Buat `PickFrame.jsx`
-6. Buat `PhotoSession.jsx` (gabung LiveMode + ShutterMode)
-7. Buat `Processing.jsx` (stub dulu)
-8. Buat `Results.jsx` (ganti Delivery.jsx)
-9. Pindah `Editor.jsx` → `admin/FrameEditor.jsx`
-10. Buat `admin/AdminLogin.jsx`
-11. Buat `admin/AdminDashboard.jsx`
-12. Update `App.jsx` — routes baru
-13. Update `useAppStore.js` — state baru
-14. Hapus `Home.jsx`, `LiveMode.jsx` yang lama
-15. Test dev server
+AdminLayout sidebar
+  → NavLink onClick: if (adminDirtyGuard) → e.preventDefault() → show dialog
+  → Dialog: "Kembali & Simpan" / "Buang & Lanjut"
+```

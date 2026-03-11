@@ -76,7 +76,7 @@ Admin Dashboard
 ├── Voucher Manager    — generate kode, set pakai/expiry
 ├── Payment Settings   — Midtrans API key, harga sesi
 ├── Printer Settings   — konfigurasi printer
-└── Branding Settings  — nama studio, logo, warna
+└── Branding Settings  — nama studio, tagline, logo, warna aksen, background
 ```
 
 **Admin TIDAK FOTO, TIDAK BAYAR.**
@@ -105,7 +105,7 @@ Admin Dashboard
 | `/admin/vouchers` | AdminVouchers | generate & manage kode voucher |
 | `/admin/payment` | AdminPaymentSettings | Midtrans API key, harga |
 | `/admin/printer` | AdminPrinterSettings | konfigurasi printer |
-| `/admin/branding` | AdminBrandingSettings | nama studio, branding, PIN admin |
+| `/admin/branding` | AdminBrandingSettings | nama studio, tagline, logo, aksen, background, PIN admin |
 | `/admin/cloud` | AdminCloudSettings | konfigurasi Firebase Storage untuk upload hasil |
 
 **Route guard:** Semua child route di bawah `/admin` cek `adminAuthenticated`. Jika belum login redirect ke `/admin/login`.
@@ -198,11 +198,22 @@ photobooth-app/
   "midtrans": { "serverKey": "", "clientKey": "", "isProduction": false },
   "pricing": { "sessionPrice": 30000 },
   "printer": { "name": "", "copies": 1 },
-  "branding": { "studioName": "Photobooth", "primaryColor": "#e94560" },
+  "branding": {
+    "studioName": "Photobooth",
+    "primaryColor": "#e94560",
+    "tagline": "",
+    "bgColor": "",
+    "logoFile": "",
+    "bgImageFile": ""
+  },
   "admin": { "password": "admin123" },
   "firebase": { "apiKey": "", "storageBucket": "" }
 }
 ```
+
+**Branding assets** disimpan di `userData/database/branding/`:
+- `logo.png` — logo studio (upload via admin)
+- `bg-image.{png|jpg}` — background gambar halaman user
 Di runtime:
 - `userData/database/vouchers.json` dan `transactions.json` dibuat otomatis jika belum ada.
 - Formatnya mengikuti contoh di bawah (satu array JSON).
@@ -250,6 +261,18 @@ Di runtime:
 | Field | Type | Keterangan |
 |-------|------|------------|
 | `adminAuthenticated` | boolean | Apakah admin sudah login |
+| `adminDirtyGuard` | boolean | Ada unsaved changes di admin page (block navigasi sidebar) |
+
+### Branding State (loaded sekali di startup)
+| Field | Type | Keterangan |
+|-------|------|------------|
+| `branding.studioName` | string | Nama studio |
+| `branding.primaryColor` | string | Warna aksen (hex), hanya berlaku di halaman user |
+| `branding.tagline` | string | Tagline di bawah nama studio |
+| `branding.bgColor` | string | Background warna halaman user (hex, kosong = default hitam) |
+| `branding.logoDataUrl` | string\|null | DataURL logo studio |
+| `branding.bgImageDataUrl` | string\|null | DataURL background gambar (override bgColor) |
+| `brandingLoaded` | boolean | Apakah branding sudah selesai di-load |
 
 ## IPC Bridge
 ```
@@ -288,6 +311,12 @@ Renderer (window.electronAPI.xxx)
 | `admin:verifyPassword` | `adminHandlers` | `{ success }` (cek PIN admin) |
 | `admin:getSettings` | `adminHandlers` | `{ settings }` (bootstrap dari seed jika belum ada) |
 | `admin:saveSettings` | `adminHandlers` | `{ success }` |
+| `branding:uploadLogo` | `adminHandlers` | `{ success }` (simpan logo ke `userData/database/branding/`) |
+| `branding:getLogo` | `adminHandlers` | `{ data }` (DataURL logo atau null) |
+| `branding:deleteLogo` | `adminHandlers` | `{ success }` |
+| `branding:uploadBgImage` | `adminHandlers` | `{ success }` (simpan background gambar) |
+| `branding:getBgImage` | `adminHandlers` | `{ data }` (DataURL background atau null) |
+| `branding:deleteBgImage` | `adminHandlers` | `{ success }` |
 | `admin:getGallery` | `adminHandlers` | `{ sessions[] }` (scan `userData/sessions`) |
 | `admin:getTransactions` | `adminHandlers` | `{ transactions[] }` |
 | `db:logTransaction` | `adminHandlers` | `{ success }` (prepend transaksi baru) |
@@ -336,12 +365,18 @@ npm run build:win  # Build installer Windows
 ```
 
 ## Tailwind Brand Colors
-| Token | Hex | Penggunaan |
-|-------|-----|------------|
+| Token | Value | Penggunaan |
+|-------|-------|------------|
 | `brand-primary` | `#1a1a2e` | Background utama |
-| `brand-secondary` | `#e94560` | Tombol aksi / aksen |
+| `brand-secondary` | `var(--brand-secondary, #e94560)` | Tombol aksi / aksen (dinamis via CSS variable) |
 | `brand-surface` | `#16213e` | Card / panel |
 | `brand-text` | `#eaeaea` | Teks utama |
+
+### Aksen Warna Dinamis
+- Default `--brand-secondary` di `:root` (index.css) = `#e94560`
+- `Layout.jsx` override `--brand-secondary` via inline style HANYA di user routes (`/idle`, `/payment`, dst) berdasarkan `branding.primaryColor`
+- Admin panel & ModeSelect selalu pakai default `#e94560`, TIDAK terpengaruh custom aksen
+- ModeSelect tombol User pakai `bg-[#e94560]` (hardcoded, bukan `bg-brand-secondary`)
 
 ## Admin Frame Manager (fabric.js v7)
 - **ADMIN ONLY**
@@ -373,6 +408,15 @@ npm run build:win  # Build installer Windows
     - PNG ini dipakai di halaman `SelectFrame` sebagai overlay, sementara slot dipakai untuk posisi foto saat composite.
     - Logika OOB + slotTransform yang sama juga ada di `compositeHandlers.js` saat rendering.
 
+## Branding System
+- **Load once at startup**: `App.jsx` panggil `loadBranding()` → fetch settings + logo/bgImage via IPC → simpan ke Zustand
+- **Semua halaman user baca dari store** (sinkron, tanpa flash ke default)
+- **Admin save**: `AdminBrandingSettings` save settings + upload file → panggil `loadBranding()` lagi → semua halaman langsung update
+- **Scoping**: aksen warna, background warna/gambar hanya di-apply di `Layout.jsx` untuk user routes (`/idle`, `/payment`, dst). ModeSelect (`/`) dan admin panel tidak terpengaruh
+- **Unsaved changes guard**: `AdminBrandingSettings` sync dirty state ke `adminDirtyGuard` (Zustand) → `AdminLayout` intercept sidebar click → tampilkan dialog konfirmasi
+- **Logo & background image** disimpan sebagai file di `userData/database/branding/`, path disimpan di settings.json (`logoFile`, `bgImageFile`)
+- `ensureSettings()` hanya bootstrap dari seed file jika `userData/settings.json` belum ada — TIDAK pernah overwrite data yang sudah diubah admin
+
 ## PhotoSession — Background Live Frame Recording
 - Saat countdown berjalan, renderer merekam frame live view (webcam/DSLR) tiap ~200ms.
 - Frame disimpan via `camera:saveLiveFrame` ke:
@@ -398,9 +442,14 @@ npm run build:win  # Build installer Windows
 - **Fase 5** ✅ — Admin flow: Login, sidebar dashboard, Frame Manager, Gallery, Transaksi, Voucher, Settings (Payment/Printer/Branding/Cloud)
 - **Fase 6** ✅ — Composite, GIF + Boomerang generation, print, cloud upload, QR result
 - **Fase 7** ✅ — Payment: Midtrans QRIS (mock & real) + Voucher system
-- **Fase 8** 🔲 — Polish final, hardening, error handling, build/installer production
+- **Fase 8** 🔄 — Polish, branding, hardening, error handling, build/installer production
 
 ### Fixes & Polish yang sudah done (post-fase 7)
 - ✅ Webcam capture & GIF frame recording di-mirror horizontal (konsisten dengan live view preview)
+- ✅ Branding system overhaul: load sekali di startup → Zustand → no flash
+- ✅ Fitur branding baru: logo upload, tagline, background warna/gambar (halaman user)
+- ✅ Warna aksen dinamis via CSS variable (hanya halaman user, admin tetap default)
+- ✅ Admin unsaved changes guard: sticky bar + navigation blocker dialog
+- ✅ Fix password admin: hapus seed sync yang menimpa password baru
 
 - JANGAN install: `fluent-ffmpeg`, `better-sqlite3`, `napi-canon-cameras`
