@@ -1,0 +1,16 @@
+{
+  "id": "frame-1773230595475",
+  "name": "New Template",
+  "version": 2,
+  "thumbnailSlot": 0,
+  "slots": [],
+  "canvas": {
+    "width": 1200,
+    "height": 1800,
+    "paperSize": "4x6",
+    "dpi": 300,
+    "backgroundColor": "#ffffff"
+  },
+  "layers": [],
+  "fabricJson": null
+}

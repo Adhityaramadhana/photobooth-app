@@ -146,7 +146,14 @@ photobooth-app/
 │   │       └── AdminCloudSettings.jsx
 │   ├── components/
 │   │   ├── Layout.jsx             # User layout + exit button
-│   │   └── AdminLayout.jsx        # Admin layout + sidebar nav + logout
+│   │   ├── AdminLayout.jsx        # Admin layout + sidebar nav + logout
+│   │   └── admin/editor/
+│   │       ├── TemplateEditor.jsx # Main editor wrapper (save, load, layout state)
+│   │       ├── EditorCanvas.jsx   # Fabric.js canvas (zoom via CSS transform)
+│   │       ├── EditorToolbar.jsx  # Toolbar tambah layer (slot, bg, overlay, text)
+│   │       ├── LayerPanel.jsx     # Layer list + visibility/lock toggle
+│   │       ├── LayoutPanel.jsx    # Paper size, DPI, orientation picker
+│   │       └── PropertiesPanel.jsx# Properties objek terpilih (posisi, warna, dll)
 │   ├── store/
 │   │   └── useAppStore.js
 │   ├── App.jsx
@@ -360,10 +367,11 @@ npm run build:win  # Build installer Windows
       - `canvas`: width, height, dpi, orientation, paperSize, backgroundColor.
       - `layers`: semua objek dengan properti tambahan (`layerRole`, `slotIndex`, dll).
       - `fabricJson`: JSON penuh untuk restore 1:1.
-    - `config.slots` diisi ulang berdasar layer `photo-slot` (dengan transform jika overlay keluar canvas).
+    - `config.slots` diisi ulang berdasar layer `photo-slot`. Jika overlay/background keluar batas canvas (OOB), posisi slot di-transform otomatis (`slotTransform`) supaya tetap align saat composite.
     - `frame:saveConfig` menulis `config.json`.
-    - Editor sembunyikan slot + background transparent + auto-fit overlay/background → export PNG via `canvas.toDataURL()` → `frame:uploadPng`.
+    - Editor sembunyikan slot + background transparent + auto-fit overlay/background (jika OOB, di-cover-scale ke canvas) → export PNG via `canvas.toDataURL()` → `frame:uploadPng`.
     - PNG ini dipakai di halaman `SelectFrame` sebagai overlay, sementara slot dipakai untuk posisi foto saat composite.
+    - Logika OOB + slotTransform yang sama juga ada di `compositeHandlers.js` saat rendering.
 
 ## PhotoSession — Background Live Frame Recording
 - Saat countdown berjalan, renderer merekam frame live view (webcam/DSLR) tiap ~200ms.
@@ -375,6 +383,13 @@ npm run build:win  # Build installer Windows
     - `gif:generateBoomerang` → GIF boomerang (forward + reverse).
 - User hanya lihat: live view + countdown + flash 📸 (tanpa tahu proses background).
 
+## PhotoSession — Mirror / Flip Horizontal (Webcam Mode)
+- Live view preview di-mirror via CSS `style={{ transform: 'scaleX(-1)' }}` pada `<img>`.
+- Hasil capture & live frame recording juga di-mirror supaya konsisten:
+  - Sebelum `drawImage(video, ...)` ke canvas, apply `ctx.translate(width, 0); ctx.scale(-1, 1)`.
+  - Berlaku untuk: `snapCanvas` (capture foto) dan `webcamCanvasRef` (frame GIF recording).
+- Efek: jempol kiri ke kamera → jempol kiri di preview → jempol kiri di hasil foto & GIF.
+
 ## Phase Status
 - **Fase 1** ✅ — Skeleton project, routing, store, IPC ping
 - **Fase 2** ✅ — Camera handlers (mock/webcam/DSLR), halaman lama diganti flow baru
@@ -384,5 +399,8 @@ npm run build:win  # Build installer Windows
 - **Fase 6** ✅ — Composite, GIF + Boomerang generation, print, cloud upload, QR result
 - **Fase 7** ✅ — Payment: Midtrans QRIS (mock & real) + Voucher system
 - **Fase 8** 🔲 — Polish final, hardening, error handling, build/installer production
+
+### Fixes & Polish yang sudah done (post-fase 7)
+- ✅ Webcam capture & GIF frame recording di-mirror horizontal (konsisten dengan live view preview)
 
 - JANGAN install: `fluent-ffmpeg`, `better-sqlite3`, `napi-canon-cameras`

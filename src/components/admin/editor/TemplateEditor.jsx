@@ -397,7 +397,7 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
 
         {/* Left: Layers + Layout */}
         <div className="w-56 flex-shrink-0 bg-brand-surface border-r border-white/8 flex flex-col overflow-hidden">
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             <LayerPanel
               layers={layers}
               selectedLayerId={selectedLayerId}

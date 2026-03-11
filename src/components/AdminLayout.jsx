@@ -27,7 +27,7 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-brand-primary text-brand-text">
+    <div className="flex h-screen bg-brand-primary text-brand-text">
       {/* Sidebar */}
       <aside className="w-52 flex-shrink-0 flex flex-col bg-brand-surface border-r border-white/10">
         {/* Logo */}
@@ -71,7 +71,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-hidden">
         <Outlet />
       </main>
     </div>
