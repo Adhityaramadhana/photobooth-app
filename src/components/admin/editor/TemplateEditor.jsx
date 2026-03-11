@@ -57,6 +57,9 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
   const [msg, setMsg] = useState('')
   const [templateName, setTemplateName] = useState(frameName || '')
   const [loaded, setLoaded] = useState(false)
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
+  const historyRef = useRef({ undo: [], redo: [], next: null, processing: false, _save: null, _canvas: null })
 
   useEffect(() => {
     if (!frameId || loaded) return
@@ -66,7 +69,13 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
   async function loadTemplate() {
     try {
       const { config } = await window.electronAPI.frame.getConfig(frameId)
-      if (!config) { setLoaded(true); return }
+      if (!config) {
+        await new Promise(r => setTimeout(r, 200))
+        const emptyCanvas = canvasRef.current?.getCanvas()
+        if (emptyCanvas) initHistory(emptyCanvas)
+        setLoaded(true)
+        return
+      }
 
       setTemplateName(config.name || frameName || '')
 
@@ -85,6 +94,7 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
           await canvas.loadFromJSON(config.fabricJson)
           canvas.renderAll()
           syncLayers()
+          initHistory(canvas)
         }
         setLoaded(true)
         return
@@ -146,6 +156,7 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
             canvas.add(img)
             canvas.renderAll()
             syncLayers()
+            initHistory(canvas)
           }
         } catch (err) {
           console.warn('Failed to load frame PNG:', err)
@@ -176,6 +187,82 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
   const handleSelectionChange = useCallback((id) => {
     setSelectedLayerId(id)
   }, [])
+
+  // ── Undo / Redo ────────────────────────────────────────────────────────────
+
+  const initHistory = useCallback((canvas) => {
+    const h = historyRef.current
+    // Remove listeners from the previous canvas if any
+    if (h._canvas && h._save) {
+      h._canvas.off('object:added',    h._save)
+      h._canvas.off('object:removed',  h._save)
+      h._canvas.off('object:modified', h._save)
+    }
+    h.undo        = []
+    h.redo        = []
+    h.next        = JSON.stringify(canvas.toJSON(CUSTOM_PROPS))
+    h.processing  = false
+    h._canvas     = canvas
+    setCanUndo(false)
+    setCanRedo(false)
+
+    h._save = () => {
+      if (h.processing) return
+      h.undo.push(h.next)
+      if (h.undo.length > 50) h.undo.shift()
+      h.next = JSON.stringify(canvas.toJSON(CUSTOM_PROPS))
+      h.redo = []
+      setCanUndo(true)
+      setCanRedo(false)
+    }
+    canvas.on('object:added',    h._save)
+    canvas.on('object:removed',  h._save)
+    canvas.on('object:modified', h._save)
+  }, [])
+
+  const handleUndo = useCallback(async () => {
+    const canvas = canvasRef.current?.getCanvas()
+    const h = historyRef.current
+    if (!canvas || h.processing || h.undo.length === 0) return
+    h.redo.push(h.next)
+    h.next = h.undo.pop()
+    h.processing = true
+    setCanUndo(h.undo.length > 0)
+    setCanRedo(true)
+    await canvas.loadFromJSON(JSON.parse(h.next))
+    canvas.discardActiveObject()
+    canvas.renderAll()
+    syncLayers()
+    h.processing = false
+  }, [syncLayers])
+
+  const handleRedo = useCallback(async () => {
+    const canvas = canvasRef.current?.getCanvas()
+    const h = historyRef.current
+    if (!canvas || h.processing || h.redo.length === 0) return
+    h.undo.push(h.next)
+    h.next = h.redo.pop()
+    h.processing = true
+    setCanUndo(true)
+    setCanRedo(h.redo.length > 0)
+    await canvas.loadFromJSON(JSON.parse(h.next))
+    canvas.discardActiveObject()
+    canvas.renderAll()
+    syncLayers()
+    h.processing = false
+  }, [syncLayers])
+
+  // Keyboard shortcuts: Ctrl+Z / Cmd+Z = undo, Ctrl+Y / Ctrl+Shift+Z = redo
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const mod = e.metaKey || e.ctrlKey
+      if (!mod) return
+      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo() }
+      if ((e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); handleRedo() }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [handleUndo, handleRedo])
 
   const handleSave = async () => {
     const canvas = canvasRef.current?.getCanvas()
@@ -326,6 +413,7 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
         await c2.loadFromJSON(json)
         c2.renderAll()
         syncLayers()
+        initHistory(c2)
       }
     }, 150)
   }
@@ -390,6 +478,10 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
         canvasRef={canvasRef}
         frameId={frameId}
         onSync={syncLayers}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
       />
 
       {/* ── Main 3-column area ── */}
