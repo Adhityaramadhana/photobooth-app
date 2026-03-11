@@ -144,10 +144,15 @@ export default function PhotoSession() {
       const video = webcamVideoRef.current
       const canvas = webcamCanvasRef.current
       if (video && canvas && video.readyState >= 2 && video.videoWidth > 0) {
-        // Webcam: render frame dari video element
+        // Webcam: render frame dari video element (mirror horizontal supaya hasil = preview)
         canvas.width = video.videoWidth
         canvas.height = video.videoHeight
-        canvas.getContext('2d').drawImage(video, 0, 0)
+        const ctx = canvas.getContext('2d')
+        ctx.save()
+        ctx.translate(canvas.width, 0)
+        ctx.scale(-1, 1)
+        ctx.drawImage(video, 0, 0)
+        ctx.restore()
         dataUrl = canvas.toDataURL('image/jpeg', 0.6)
       }
 
@@ -211,7 +216,10 @@ export default function PhotoSession() {
         const snapCanvas = document.createElement('canvas')
         snapCanvas.width = video.videoWidth
         snapCanvas.height = video.videoHeight
-        snapCanvas.getContext('2d').drawImage(video, 0, 0)
+        const snapCtx = snapCanvas.getContext('2d')
+        snapCtx.translate(snapCanvas.width, 0)
+        snapCtx.scale(-1, 1)
+        snapCtx.drawImage(video, 0, 0)
         const base64 = snapCanvas.toDataURL('image/jpeg', 0.95)
 
         result = await window.electronAPI.camera.saveWebcamFrame(dir, base64)
