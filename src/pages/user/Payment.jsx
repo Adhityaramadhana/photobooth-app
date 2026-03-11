@@ -185,7 +185,7 @@ export default function Payment() {
             </div>
             <button
               onClick={() => handleOnPaid('qris', sessionPrice)}
-              className="px-10 py-4 bg-brand-secondary text-white rounded-2xl text-lg font-semibold active:scale-95 transition"
+              className="px-10 py-4 bg-brand-secondary text-brand-secondary-text rounded-2xl text-lg font-semibold active:scale-95 transition"
             >
               Simulasi Bayar ✓
             </button>
@@ -239,7 +239,7 @@ export default function Payment() {
         <button
           onClick={handleValidateVoucher}
           disabled={!voucherCode.trim()}
-          className="w-full py-4 bg-brand-secondary text-white rounded-xl text-lg font-semibold active:scale-95 transition disabled:opacity-40"
+          className="w-full py-4 bg-brand-secondary text-brand-secondary-text rounded-xl text-lg font-semibold active:scale-95 transition disabled:opacity-40"
         >
           Validasi Voucher
         </button>

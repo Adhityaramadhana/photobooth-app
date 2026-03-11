@@ -12,6 +12,7 @@ export default {
         brand: {
           primary: '#1a1a2e',
           secondary: 'var(--brand-secondary, #e94560)',
+          'secondary-text': 'var(--brand-secondary-text, #ffffff)',
           surface: '#16213e',
           text: '#eaeaea'
         }

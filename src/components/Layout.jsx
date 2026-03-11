@@ -3,6 +3,15 @@ import useAppStore from '../store/useAppStore'
 
 const USER_ROUTES = ['/idle', '/payment', '/select-frame', '/photo-session', '/processing', '/result']
 
+function getContrastText(hex) {
+  if (!hex || hex.length < 7) return '#ffffff'
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.5 ? '#1a1a2e' : '#ffffff'
+}
+
 export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -19,7 +28,9 @@ export default function Layout() {
 
   const wrapperStyle = {}
   if (isUserRoute) {
-    wrapperStyle['--brand-secondary'] = branding.primaryColor || '#e94560'
+    const accent = branding.primaryColor || '#e94560'
+    wrapperStyle['--brand-secondary'] = accent
+    wrapperStyle['--brand-secondary-text'] = getContrastText(accent)
     if (branding.bgImageDataUrl) {
       wrapperStyle.backgroundImage = `url(${branding.bgImageDataUrl})`
       wrapperStyle.backgroundSize = 'cover'

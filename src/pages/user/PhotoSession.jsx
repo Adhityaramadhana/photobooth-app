@@ -264,7 +264,7 @@ export default function PhotoSession() {
         <p className="text-red-400 text-xl">{error}</p>
         <button
           onClick={() => navigate('/')}
-          className="px-8 py-3 bg-brand-secondary text-white rounded-xl"
+          className="px-8 py-3 bg-brand-secondary text-brand-secondary-text rounded-xl"
         >
           Kembali ke Awal
         </button>

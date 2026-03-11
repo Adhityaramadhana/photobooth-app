@@ -112,7 +112,7 @@ export default function Result() {
 
         <button
           onClick={handleFinish}
-          className="w-full py-4 bg-brand-secondary text-white rounded-2xl text-lg font-semibold active:scale-95 transition"
+          className="w-full py-4 bg-brand-secondary text-brand-secondary-text rounded-2xl text-lg font-semibold active:scale-95 transition"
         >
           Selesai
         </button>

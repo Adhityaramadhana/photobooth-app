@@ -132,7 +132,7 @@ export default function Processing() {
         <div className="flex gap-3 mt-2">
           <button
             onClick={() => { setError(null); ran.current = false; runProcessing() }}
-            className="px-6 py-3 bg-brand-secondary text-white rounded-xl font-semibold"
+            className="px-6 py-3 bg-brand-secondary text-brand-secondary-text rounded-xl font-semibold"
           >
             Coba Lagi
           </button>
