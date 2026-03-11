@@ -59,6 +59,7 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
   const [loaded, setLoaded] = useState(false)
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
+  const [zoomLabel, setZoomLabel] = useState('Fit')
   const historyRef = useRef({ undo: [], redo: [], next: null, processing: false, _save: null, _canvas: null })
 
   useEffect(() => {
@@ -252,17 +253,57 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
     h.processing = false
   }, [syncLayers])
 
-  // Keyboard shortcuts: Ctrl+Z / Cmd+Z = undo, Ctrl+Y / Ctrl+Shift+Z = redo
+  // Keyboard shortcuts
   useEffect(() => {
     const onKeyDown = (e) => {
-      const mod = e.metaKey || e.ctrlKey
-      if (!mod) return
-      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo() }
-      if ((e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); handleRedo() }
+      const mod    = e.metaKey || e.ctrlKey
+      const canvas = canvasRef.current?.getCanvas()
+
+      // ── Modifier shortcuts (Ctrl / Cmd) ───────────────────────────────────
+      if (mod) {
+        if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); return }
+        if ((e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); handleRedo(); return }
+        return
+      }
+
+      // ── Non-modifier shortcuts — skip when a form field is focused ────────
+      const tag = document.activeElement?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+      // Delete / Backspace — delete selected layer
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (!canvas) return
+        const active = canvas.getActiveObject()
+        if (!active || active.isEditing) return  // don't interfere with text editing
+        e.preventDefault()
+        canvas.remove(active)
+        canvas.discardActiveObject()
+        canvas.renderAll()
+        syncLayers()
+        return
+      }
+
+      // Tab / Shift+Tab — cycle through layers (matches LayerPanel visual order)
+      if (e.key === 'Tab') {
+        if (!canvas) return
+        e.preventDefault()
+        const objs = [...canvas.getObjects()].reverse() // top layer first
+        if (objs.length === 0) return
+        const active  = canvas.getActiveObject()
+        const idx     = active ? objs.findIndex(o => o.id === active.id) : -1
+        const nextIdx = e.shiftKey
+          ? (idx <= 0 ? objs.length - 1 : idx - 1)
+          : (idx >= objs.length - 1 ? 0 : idx + 1)
+        const nextObj = objs[nextIdx]
+        if (nextObj && nextObj.selectable !== false) {
+          canvas.setActiveObject(nextObj)
+          canvas.renderAll()
+        }
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [handleUndo, handleRedo])
+  }, [handleUndo, handleRedo, syncLayers])
 
   const handleSave = async () => {
     const canvas = canvasRef.current?.getCanvas()
@@ -482,6 +523,10 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
         onRedo={handleRedo}
         canUndo={canUndo}
         canRedo={canRedo}
+        onZoomIn={() => canvasRef.current?.zoomIn()}
+        onZoomOut={() => canvasRef.current?.zoomOut()}
+        onZoomFit={() => canvasRef.current?.zoomFit()}
+        zoomLabel={zoomLabel}
       />
 
       {/* ── Main 3-column area ── */}
@@ -512,6 +557,7 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
           canvasHeight={layout.heightPx}
           onSelectionChange={handleSelectionChange}
           onLayersChange={setLayers}
+          onZoomChange={setZoomLabel}
         />
 
         {/* Right: Properties */}
