@@ -1,3 +1,5 @@
+import { useState, useRef } from 'react'
+
 // ─── Icons ───────────────────────────────────────────────────────────────────
 const EyeOpenIcon = () => (
   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -38,6 +40,17 @@ const TrashIcon = () => (
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
   </svg>
 )
+// 6-dot grip — drag handle
+const GripIcon = () => (
+  <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="8"  cy="6"  r="2" />
+    <circle cx="16" cy="6"  r="2" />
+    <circle cx="8"  cy="12" r="2" />
+    <circle cx="16" cy="12" r="2" />
+    <circle cx="8"  cy="18" r="2" />
+    <circle cx="16" cy="18" r="2" />
+  </svg>
+)
 
 // Role → color dot + short label
 const ROLE_CONFIG = {
@@ -50,7 +63,15 @@ const ROLE_CONFIG = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function LayerPanel({ layers, selectedLayerId, canvasRef, onSync }) {
+  // dragId drives the visual (opacity) — needs state for re-render
+  // dragIdRef is read inside drop handler to avoid stale closure
+  const [dragId,     setDragId]     = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
+  const dragIdRef = useRef(null)
+
   const getCanvas = () => canvasRef.current?.getCanvas()
+
+  // ── Canvas operations ──────────────────────────────────────────────────────
 
   const selectLayer = (layerId) => {
     const canvas = getCanvas()
@@ -105,7 +126,69 @@ export default function LayerPanel({ layers, selectedLayerId, canvasRef, onSync 
     onSync?.()
   }
 
-  // Reverse so top (front) layer appears first
+  // ── Drag-to-reorder ────────────────────────────────────────────────────────
+  // Directly splice canvas._objects so the dragged layer lands at the exact
+  // z-index slot that the drop-target currently occupies.
+  // Proof of correctness:
+  //   splice(fromIdx, 1)           → removes source, array shifts if from < to
+  //   splice(originalToIdx, 0, obj) → because the shift exactly cancels out,
+  //                                   obj ends up right at the target's slot ✓
+  const reorderLayer = (fromId, toId) => {
+    const canvas = getCanvas()
+    if (!canvas) return
+
+    const fromIdx = canvas._objects.findIndex(o => o.id === fromId)
+    const toIdx   = canvas._objects.findIndex(o => o.id === toId)
+    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return
+
+    const [obj] = canvas._objects.splice(fromIdx, 1)
+    canvas._objects.splice(toIdx, 0, obj)
+
+    canvas.renderAll()
+    onSync?.()
+  }
+
+  // ── HTML5 DnD handlers ─────────────────────────────────────────────────────
+
+  const handleDragStart = (e, layerId) => {
+    dragIdRef.current = layerId
+    setDragId(layerId)
+    e.dataTransfer.effectAllowed = 'move'
+    // Use a tiny off-screen ghost so the row itself doesn't clone into a
+    // floating image — the highlighted row IS the visual feedback.
+    const ghost = document.createElement('div')
+    ghost.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px'
+    document.body.appendChild(ghost)
+    e.dataTransfer.setDragImage(ghost, 0, 0)
+    requestAnimationFrame(() => ghost.remove())
+  }
+
+  const handleDragOver = (e, layerId) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (layerId !== dragIdRef.current) setDragOverId(layerId)
+  }
+
+  const handleDrop = (e, targetId) => {
+    e.preventDefault()
+    const fromId = dragIdRef.current   // read ref — always current value
+    dragIdRef.current = null
+    setDragId(null)
+    setDragOverId(null)
+    if (fromId && targetId && fromId !== targetId) {
+      reorderLayer(fromId, targetId)
+    }
+  }
+
+  const handleDragEnd = () => {
+    dragIdRef.current = null
+    setDragId(null)
+    setDragOverId(null)
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  // Reverse so front (topmost) layer appears first in the list
   const reversed = [...layers].reverse()
 
   return (
@@ -128,18 +211,51 @@ export default function LayerPanel({ layers, selectedLayerId, canvasRef, onSync 
         ) : (
           reversed.map((layer) => {
             const isSelected = selectedLayerId === layer.id
-            const role = ROLE_CONFIG[layer.layerRole] ?? { dot: '#666', label: '?' }
+            const isDragging = dragId === layer.id
+            const isDragOver = dragOverId === layer.id && !isDragging
+            const role       = ROLE_CONFIG[layer.layerRole] ?? { dot: '#666', label: '?' }
 
             return (
               <div
                 key={layer.id}
-                className={`group flex items-center gap-1.5 px-2 py-1.5 cursor-pointer transition-colors border-l-2 ${
+                draggable
+                onDragStart={(e) => handleDragStart(e, layer.id)}
+                onDragOver={(e)  => handleDragOver(e, layer.id)}
+                onDrop={(e)      => handleDrop(e, layer.id)}
+                onDragEnd={handleDragEnd}
+                onDragLeave={(e) => {
+                  // Only clear when truly leaving this row, not a child element
+                  if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) {
+                    setDragOverId(null)
+                  }
+                }}
+                className={[
+                  'group flex items-center gap-1.5 px-2 py-1.5 select-none',
+                  'cursor-pointer transition-colors border-l-2 border-t-2',
+                  // Left selection stripe
                   isSelected
                     ? 'bg-brand-secondary/12 border-l-brand-secondary'
-                    : 'border-l-transparent hover:bg-white/5'
-                }`}
+                    : 'border-l-transparent hover:bg-white/5',
+                  // Top drop-target indicator (blue line above row)
+                  isDragOver
+                    ? 'border-t-brand-secondary bg-brand-secondary/8'
+                    : 'border-t-transparent',
+                  // Dim the row currently being dragged
+                  isDragging ? 'opacity-40' : '',
+                ].join(' ')}
                 onClick={() => selectLayer(layer.id)}
               >
+                {/* Drag handle — grab anywhere on this icon to drag */}
+                <div
+                  className="flex-shrink-0 cursor-grab active:cursor-grabbing text-brand-text/20 hover:text-brand-text/55 transition-colors"
+                  title="Drag to reorder"
+                  // Prevent click-to-select from stealing the mousedown before
+                  // the browser can initiate a drag operation on the row
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <GripIcon />
+                </div>
+
                 {/* Visibility toggle */}
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleVisibility(layer.id) }}
@@ -167,7 +283,7 @@ export default function LayerPanel({ layers, selectedLayerId, canvasRef, onSync 
                   {layer.name}
                 </span>
 
-                {/* Controls — visible on hover or selected */}
+                {/* Controls — visible on hover or when selected */}
                 <div className={`flex items-center gap-0.5 transition-opacity ${
                   isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                 }`}>
