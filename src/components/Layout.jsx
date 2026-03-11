@@ -17,22 +17,25 @@ export default function Layout() {
     navigate('/')
   }
 
-  const bgStyle = {}
-  if (branding.bgImageDataUrl) {
-    bgStyle.backgroundImage = `url(${branding.bgImageDataUrl})`
-    bgStyle.backgroundSize = 'cover'
-    bgStyle.backgroundPosition = 'center'
-    bgStyle.backgroundRepeat = 'no-repeat'
-  } else if (branding.bgColor) {
-    bgStyle.backgroundColor = branding.bgColor
+  const wrapperStyle = {}
+  if (isUserRoute) {
+    wrapperStyle['--brand-secondary'] = branding.primaryColor || '#e94560'
+    if (branding.bgImageDataUrl) {
+      wrapperStyle.backgroundImage = `url(${branding.bgImageDataUrl})`
+      wrapperStyle.backgroundSize = 'cover'
+      wrapperStyle.backgroundPosition = 'center'
+      wrapperStyle.backgroundRepeat = 'no-repeat'
+    } else if (branding.bgColor) {
+      wrapperStyle.backgroundColor = branding.bgColor
+    }
   }
 
-  const hasCustomBg = branding.bgImageDataUrl || branding.bgColor
+  const hasCustomBg = isUserRoute && (branding.bgImageDataUrl || branding.bgColor)
 
   return (
     <div
       className={`min-h-screen w-full text-white relative ${hasCustomBg ? '' : 'bg-black'}`}
-      style={bgStyle}
+      style={wrapperStyle}
     >
       {isUserRoute && (
         <button

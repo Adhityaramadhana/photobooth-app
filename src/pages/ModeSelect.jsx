@@ -32,7 +32,7 @@ export default function ModeSelect() {
       <div className="flex gap-8">
         <button
           onClick={handleUserMode}
-          className="flex flex-col items-center gap-4 w-56 py-10 bg-brand-secondary rounded-3xl active:scale-95 transition hover:opacity-90"
+          className="flex flex-col items-center gap-4 w-56 py-10 bg-[#e94560] rounded-3xl active:scale-95 transition hover:opacity-90"
         >
           <span className="text-5xl">🙋</span>
           <div className="flex flex-col items-center gap-1">

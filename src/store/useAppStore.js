@@ -111,6 +111,10 @@ const useAppStore = create((set, get) => ({
 
   setBranding: (partial) =>
     set((state) => ({ branding: { ...state.branding, ...partial } })),
+
+  // ── Admin Navigation Guard ────────────────────────────
+  adminDirtyGuard: false,
+  setAdminDirtyGuard: (bool) => set({ adminDirtyGuard: bool }),
 }))
 
 export default useAppStore

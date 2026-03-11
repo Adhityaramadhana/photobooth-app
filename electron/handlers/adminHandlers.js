@@ -44,7 +44,6 @@ const DEFAULT_SETTINGS = {
 function ensureSettings() {
   const p = settingsPath()
   if (!fs.existsSync(p)) {
-    // Coba copy dari project database/ (seed file)
     const seedPath = path.join(__dirname, '../../database/settings.json')
     if (fs.existsSync(seedPath)) {
       fs.copyFileSync(seedPath, p)
@@ -52,19 +51,7 @@ function ensureSettings() {
       writeJson(p, DEFAULT_SETTINGS)
     }
   }
-  const settings = readJson(p, DEFAULT_SETTINGS)
-
-  // Dev mode: sync admin password dari seed supaya perubahan di project langsung berlaku
-  const seedPath = path.join(__dirname, '../../database/settings.json')
-  if (fs.existsSync(seedPath)) {
-    const seed = readJson(seedPath, {})
-    if (seed?.admin?.password && seed.admin.password !== settings?.admin?.password) {
-      settings.admin = { ...settings.admin, password: seed.admin.password }
-      writeJson(p, settings)
-    }
-  }
-
-  return settings
+  return readJson(p, DEFAULT_SETTINGS)
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────

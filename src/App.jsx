@@ -20,20 +20,11 @@ import AdminPrinterSettings from './pages/admin/AdminPrinterSettings'
 import AdminBrandingSettings from './pages/admin/AdminBrandingSettings'
 import AdminCloudSettings from './pages/admin/AdminCloudSettings'
 
-function useApplyBrandingCssVars() {
-  const primaryColor = useAppStore((s) => s.branding.primaryColor)
-  useEffect(() => {
-    document.documentElement.style.setProperty('--brand-secondary', primaryColor)
-  }, [primaryColor])
-}
-
 export default function App() {
   const brandingLoaded = useAppStore((s) => s.brandingLoaded)
   const loadBranding = useAppStore((s) => s.loadBranding)
 
   useEffect(() => { loadBranding() }, [])
-
-  useApplyBrandingCssVars()
 
   if (!brandingLoaded) {
     return (
