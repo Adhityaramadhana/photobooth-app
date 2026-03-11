@@ -36,7 +36,7 @@ const DEFAULT_SETTINGS = {
   midtrans: { serverKey: '', clientKey: '', isProduction: false },
   pricing: { sessionPrice: 30000 },
   printer: { name: '', copies: 1 },
-  branding: { studioName: 'Photobooth', primaryColor: '#e94560' },
+  branding: { studioName: 'Photobooth', primaryColor: '#e94560', tagline: '', bgColor: '', logoFile: '', bgImageFile: '' },
   admin: { password: 'admin123' },
   firebase: { apiKey: '', storageBucket: '' }
 }
@@ -356,6 +356,108 @@ export function deleteFrameAsset(frameId, fileName) {
   try {
     const filePath = path.join(framesDir(), frameId, 'assets', fileName)
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+}
+
+// ── Branding Assets (logo & background image) ────────────────────────────────
+
+const brandingAssetsDir = () => {
+  const dir = path.join(app.getPath('userData'), 'database', 'branding')
+  fs.mkdirSync(dir, { recursive: true })
+  return dir
+}
+
+export function uploadBrandingLogo(base64Data) {
+  try {
+    const dir = brandingAssetsDir()
+    const raw = base64Data.replace(/^data:image\/\w+;base64,/, '')
+    fs.writeFileSync(path.join(dir, 'logo.png'), Buffer.from(raw, 'base64'))
+
+    const settings = ensureSettings()
+    settings.branding = { ...settings.branding, logoFile: 'logo.png' }
+    writeJson(settingsPath(), settings)
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+}
+
+export function getBrandingLogo() {
+  try {
+    const filePath = path.join(brandingAssetsDir(), 'logo.png')
+    if (!fs.existsSync(filePath)) return { data: null }
+    const buffer = fs.readFileSync(filePath)
+    return { data: `data:image/png;base64,${buffer.toString('base64')}` }
+  } catch {
+    return { data: null }
+  }
+}
+
+export function deleteBrandingLogo() {
+  try {
+    const filePath = path.join(brandingAssetsDir(), 'logo.png')
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+    const settings = ensureSettings()
+    settings.branding = { ...settings.branding, logoFile: '' }
+    writeJson(settingsPath(), settings)
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+}
+
+export function uploadBrandingBgImage(base64Data) {
+  try {
+    const dir = brandingAssetsDir()
+    const match = base64Data.match(/^data:image\/(\w+);base64,/)
+    const ext = match ? match[1].replace('jpeg', 'jpg') : 'png'
+    const fileName = `bg-image.${ext}`
+    const raw = base64Data.replace(/^data:image\/\w+;base64,/, '')
+
+    // Remove any existing bg-image files with different extensions
+    fs.readdirSync(dir).filter(f => f.startsWith('bg-image.')).forEach(f => {
+      fs.unlinkSync(path.join(dir, f))
+    })
+
+    fs.writeFileSync(path.join(dir, fileName), Buffer.from(raw, 'base64'))
+
+    const settings = ensureSettings()
+    settings.branding = { ...settings.branding, bgImageFile: fileName }
+    writeJson(settingsPath(), settings)
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+}
+
+export function getBrandingBgImage() {
+  try {
+    const settings = ensureSettings()
+    const fileName = settings?.branding?.bgImageFile
+    if (!fileName) return { data: null }
+    const filePath = path.join(brandingAssetsDir(), fileName)
+    if (!fs.existsSync(filePath)) return { data: null }
+    const buffer = fs.readFileSync(filePath)
+    const ext = path.extname(fileName).toLowerCase()
+    const mime = ext === '.png' ? 'image/png' : 'image/jpeg'
+    return { data: `data:${mime};base64,${buffer.toString('base64')}` }
+  } catch {
+    return { data: null }
+  }
+}
+
+export function deleteBrandingBgImage() {
+  try {
+    const dir = brandingAssetsDir()
+    fs.readdirSync(dir).filter(f => f.startsWith('bg-image.')).forEach(f => {
+      fs.unlinkSync(path.join(dir, f))
+    })
+    const settings = ensureSettings()
+    settings.branding = { ...settings.branding, bgImageFile: '' }
+    writeJson(settingsPath(), settings)
     return { success: true }
   } catch (err) {
     return { success: false, error: err.message }

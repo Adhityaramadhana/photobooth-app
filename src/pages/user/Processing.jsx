@@ -20,6 +20,7 @@ export default function Processing() {
     setResultQrUrl,
     setResultQrImage,
     setProcessingStep,
+    branding,
   } = useAppStore()
 
   const [stepIndex, setStepIndex] = useState(-1)
@@ -82,8 +83,7 @@ export default function Processing() {
       setStepIndex(2)
       setProcessingStep(STEPS[2].label)
 
-      const { settings } = await window.electronAPI.admin.getSettings()
-      const studioName = settings?.branding?.studioName ?? 'Photobooth'
+      const studioName = branding.studioName || 'Photobooth'
 
       const uploadResult = await window.electronAPI.upload.toCloud({
         sessionDir,
@@ -103,6 +103,7 @@ export default function Processing() {
       setStepIndex(3)
       setProcessingStep(STEPS[3].label)
 
+      const { settings } = await window.electronAPI.admin.getSettings()
       const printerName = settings?.printer?.name ?? ''
       const copies = settings?.printer?.copies ?? 1
       const printTarget = compositeFile ?? photos[0]

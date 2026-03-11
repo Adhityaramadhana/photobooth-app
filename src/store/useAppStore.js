@@ -1,28 +1,39 @@
 import { create } from 'zustand'
 
-const useAppStore = create((set) => ({
+const useAppStore = create((set, get) => ({
   // ── Session State ─────────────────────────────────────
-  currentSession: null,       // data sesi foto aktif
-  currentSessionDir: null,    // direktori output sesi
-  capturedPhotos: [],         // array path foto yang sudah diambil
-  selectedFrame: null,        // frame config yang dipilih user { id, name, slots[] }
-  paymentStatus: null,        // 'pending' | 'paid' | null
-  paymentMethod: null,        // 'qris' | 'voucher' | null
-  liveFrameBuffer: [],        // buffer frame paths untuk generate GIF
-  resultCompositeFile: null,   // path file composite (foto + frame)
-  resultQrUrl: null,          // URL halaman hasil (Firebase)
-  resultQrImage: null,        // base64 PNG QR code untuk ditampilkan
-  processingStep: null,       // step processing aktif (untuk UI progress)
+  currentSession: null,
+  currentSessionDir: null,
+  capturedPhotos: [],
+  selectedFrame: null,
+  paymentStatus: null,
+  paymentMethod: null,
+  liveFrameBuffer: [],
+  resultCompositeFile: null,
+  resultQrUrl: null,
+  resultQrImage: null,
+  processingStep: null,
 
   // ── Camera State ──────────────────────────────────────
-  cameraStatus: 'disconnected', // 'disconnected' | 'connecting' | 'connected' | 'error'
+  cameraStatus: 'disconnected',
   cameraModel: null,
   liveViewActive: false,
   liveViewFrameUrl: null,
-  isMockMode: true,           // ikutin MOCK_MODE di handler
+  isMockMode: true,
 
   // ── Admin State ───────────────────────────────────────
   adminAuthenticated: false,
+
+  // ── Branding State (loaded once at startup) ───────────
+  branding: {
+    studioName: 'Photobooth',
+    primaryColor: '#e94560',
+    tagline: '',
+    bgColor: '',
+    logoDataUrl: null,
+    bgImageDataUrl: null,
+  },
+  brandingLoaded: false,
 
   // ── Session Actions ───────────────────────────────────
   setCurrentSession: (session) => set({ currentSession: session }),
@@ -69,6 +80,37 @@ const useAppStore = create((set) => ({
 
   // ── Admin Actions ─────────────────────────────────────
   setAdminAuthenticated: (bool) => set({ adminAuthenticated: bool }),
+
+  // ── Branding Actions ──────────────────────────────────
+  loadBranding: async () => {
+    try {
+      const { settings } = await window.electronAPI.admin.getSettings()
+      const b = settings?.branding ?? {}
+
+      const [logoRes, bgRes] = await Promise.all([
+        b.logoFile ? window.electronAPI.branding.getLogo() : { data: null },
+        b.bgImageFile ? window.electronAPI.branding.getBgImage() : { data: null },
+      ])
+
+      set({
+        branding: {
+          studioName: b.studioName || 'Photobooth',
+          primaryColor: b.primaryColor || '#e94560',
+          tagline: b.tagline || '',
+          bgColor: b.bgColor || '',
+          logoDataUrl: logoRes.data || null,
+          bgImageDataUrl: bgRes.data || null,
+        },
+        brandingLoaded: true,
+      })
+    } catch (err) {
+      console.error('[loadBranding]', err)
+      set({ brandingLoaded: true })
+    }
+  },
+
+  setBranding: (partial) =>
+    set((state) => ({ branding: { ...state.branding, ...partial } })),
 }))
 
 export default useAppStore

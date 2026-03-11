@@ -7,6 +7,7 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const clearSession = useAppStore((s) => s.clearSession)
+  const branding = useAppStore((s) => s.branding)
 
   const isUserRoute = USER_ROUTES.includes(location.pathname)
 
@@ -16,9 +17,23 @@ export default function Layout() {
     navigate('/')
   }
 
+  const bgStyle = {}
+  if (branding.bgImageDataUrl) {
+    bgStyle.backgroundImage = `url(${branding.bgImageDataUrl})`
+    bgStyle.backgroundSize = 'cover'
+    bgStyle.backgroundPosition = 'center'
+    bgStyle.backgroundRepeat = 'no-repeat'
+  } else if (branding.bgColor) {
+    bgStyle.backgroundColor = branding.bgColor
+  }
+
+  const hasCustomBg = branding.bgImageDataUrl || branding.bgColor
+
   return (
-    <div className="min-h-screen w-full bg-black text-white relative">
-      {/* Exit button — hanya di user flow */}
+    <div
+      className={`min-h-screen w-full text-white relative ${hasCustomBg ? '' : 'bg-black'}`}
+      style={bgStyle}
+    >
       {isUserRoute && (
         <button
           onClick={handleExit}

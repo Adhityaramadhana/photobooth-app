@@ -49,6 +49,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteAsset: (id, name) => ipcRenderer.invoke('frame:deleteAsset', id, name),
   },
 
+  branding: {
+    uploadLogo: (data) => ipcRenderer.invoke('branding:uploadLogo', data),
+    getLogo: () => ipcRenderer.invoke('branding:getLogo'),
+    deleteLogo: () => ipcRenderer.invoke('branding:deleteLogo'),
+    uploadBgImage: (data) => ipcRenderer.invoke('branding:uploadBgImage', data),
+    getBgImage: () => ipcRenderer.invoke('branding:getBgImage'),
+    deleteBgImage: () => ipcRenderer.invoke('branding:deleteBgImage'),
+  },
+
   db: {
     logTransaction: (data) => ipcRenderer.invoke('db:logTransaction', data),
   },

@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import useAppStore from './store/useAppStore'
 import Layout from './components/Layout'
 import AdminLayout from './components/AdminLayout'
 import ModeSelect from './pages/ModeSelect'
@@ -18,11 +20,32 @@ import AdminPrinterSettings from './pages/admin/AdminPrinterSettings'
 import AdminBrandingSettings from './pages/admin/AdminBrandingSettings'
 import AdminCloudSettings from './pages/admin/AdminCloudSettings'
 
+function useApplyBrandingCssVars() {
+  const primaryColor = useAppStore((s) => s.branding.primaryColor)
+  useEffect(() => {
+    document.documentElement.style.setProperty('--brand-secondary', primaryColor)
+  }, [primaryColor])
+}
+
 export default function App() {
+  const brandingLoaded = useAppStore((s) => s.brandingLoaded)
+  const loadBranding = useAppStore((s) => s.loadBranding)
+
+  useEffect(() => { loadBranding() }, [])
+
+  useApplyBrandingCssVars()
+
+  if (!brandingLoaded) {
+    return (
+      <div className="min-h-screen bg-brand-primary flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-brand-secondary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
   return (
     <HashRouter>
       <Routes>
-        {/* User flow — pakai Layout (fullscreen + exit button) */}
         <Route path="/" element={<Layout />}>
           <Route index element={<ModeSelect />} />
           <Route path="idle" element={<IdleScreen />} />
@@ -31,13 +54,10 @@ export default function App() {
           <Route path="photo-session" element={<PhotoSession />} />
           <Route path="processing" element={<Processing />} />
           <Route path="result" element={<Result />} />
-
         </Route>
 
-        {/* Admin Login — standalone, path unik agar tidak konflik dengan AdminLayout */}
         <Route path="/admin/login" element={<AdminLogin />} />
 
-        {/* Admin panel — pakai AdminLayout (sidebar + route guard) */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/frames" replace />} />
           <Route path="frames" element={<AdminFrameManager />} />
