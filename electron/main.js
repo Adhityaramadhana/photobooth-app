@@ -34,7 +34,13 @@ import {
   getVouchers,
   saveVoucher,
   deleteVoucher,
-  validateVoucher
+  validateVoucher,
+  uploadBrandingLogo,
+  getBrandingLogo,
+  deleteBrandingLogo,
+  uploadBrandingBgImage,
+  getBrandingBgImage,
+  deleteBrandingBgImage
 } from './handlers/adminHandlers'
 import { compositeRun } from './handlers/compositeHandlers'
 import { generateGif, generateBoomerang } from './handlers/gifHandlers'
@@ -113,6 +119,14 @@ ipcMain.handle('camera:stopHealthCheck', () => stopHealthCheck())
 ipcMain.handle('admin:verifyPassword', (_, pw) => verifyPassword(pw))
 ipcMain.handle('admin:getSettings', () => getSettings())
 ipcMain.handle('admin:saveSettings', (_, settings) => saveSettings(settings))
+
+// ── IPC: Branding Assets ──────────────────────────────────────────────────────
+ipcMain.handle('branding:uploadLogo', (_, data) => uploadBrandingLogo(data))
+ipcMain.handle('branding:getLogo', () => getBrandingLogo())
+ipcMain.handle('branding:deleteLogo', () => deleteBrandingLogo())
+ipcMain.handle('branding:uploadBgImage', (_, data) => uploadBrandingBgImage(data))
+ipcMain.handle('branding:getBgImage', () => getBrandingBgImage())
+ipcMain.handle('branding:deleteBgImage', () => deleteBrandingBgImage())
 
 // ── IPC: Frame Management ─────────────────────────────────────────────────────
 ipcMain.handle('frame:getList', () => getFrameList())

@@ -13,7 +13,11 @@
   },
   "branding": {
     "studioName": "Photobooth",
-    "primaryColor": "#e94560"
+    "primaryColor": "#e94560",
+    "tagline": "",
+    "bgColor": "",
+    "logoFile": "",
+    "bgImageFile": ""
   },
   "admin": {
     "password": "4321"

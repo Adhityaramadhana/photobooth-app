@@ -11,7 +11,7 @@ export default {
       colors: {
         brand: {
           primary: '#1a1a2e',
-          secondary: '#e94560',
+          secondary: 'var(--brand-secondary, #e94560)',
           surface: '#16213e',
           text: '#eaeaea'
         }

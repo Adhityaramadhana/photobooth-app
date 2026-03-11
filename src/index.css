@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --brand-secondary: #e94560;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
