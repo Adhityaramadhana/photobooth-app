@@ -8,6 +8,7 @@ import PropertiesPanel from './PropertiesPanel'
 import {
   buildTemplateConfig, uid, PAPER_SIZES, CUSTOM_PROPS,
   getPresetDimensions, inchesToPx, pxToInches, PAPER_PRESETS,
+  restoreLockStates,
 } from '../../../utils/fabricHelpers'
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -93,6 +94,7 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
         const canvas = canvasRef.current?.getCanvas()
         if (canvas) {
           await canvas.loadFromJSON(config.fabricJson)
+          restoreLockStates(canvas) // re-apply selectable/evented/hasControls from locked flag
           canvas.renderAll()
           syncLayers()
           initHistory(canvas)
@@ -231,6 +233,7 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
     setCanUndo(h.undo.length > 0)
     setCanRedo(true)
     await canvas.loadFromJSON(JSON.parse(h.next))
+    restoreLockStates(canvas)
     canvas.discardActiveObject()
     canvas.renderAll()
     syncLayers()
@@ -247,6 +250,7 @@ export default function TemplateEditor({ frameId, frameName, onSave, onBack }) {
     setCanUndo(true)
     setCanRedo(h.redo.length > 0)
     await canvas.loadFromJSON(JSON.parse(h.next))
+    restoreLockStates(canvas)
     canvas.discardActiveObject()
     canvas.renderAll()
     syncLayers()

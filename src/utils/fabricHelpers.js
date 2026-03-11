@@ -4,14 +4,22 @@ import { FabricObject } from 'fabric'
 FabricObject.ownDefaults.originX = 'left'
 FabricObject.ownDefaults.originY = 'top'
 
-// Register custom properties so they survive serialization
+// Register custom properties so they survive serialization.
+// NOTE: selectable / evented / hasControls are standard fabric props but
+// fabric v6-v7 does NOT include them in the default toJSON output (they are
+// treated as runtime-only interaction state).  Registering them here makes
+// them appear in every per-object toObject() call so they round-trip through
+// JSON correctly when saving and loading templates.
 FabricObject.customProperties = [
   'id',
   'name',
   'layerRole',    // 'background' | 'photo-slot' | 'overlay' | 'static-text' | 'dynamic-text'
   'slotIndex',    // for photo-slot layers
   'dynamicField', // for dynamic-text: 'date', 'time', 'session_id', 'studio_name'
-  'locked',       // editor lock state
+  'locked',       // editor lock flag (UI state)
+  'selectable',   // fabric interaction — false when locked
+  'evented',      // fabric interaction — false when locked
+  'hasControls',  // fabric interaction — false when locked
 ]
 
 // Paper size presets (inches-based, DPI-independent)
@@ -66,7 +74,26 @@ export const PAPER_SIZES = Object.fromEntries(
   ])
 )
 
-export const CUSTOM_PROPS = ['id', 'name', 'layerRole', 'slotIndex', 'dynamicField', 'locked']
+// Must stay in sync with FabricObject.customProperties above.
+export const CUSTOM_PROPS = [
+  'id', 'name', 'layerRole', 'slotIndex', 'dynamicField',
+  'locked', 'selectable', 'evented', 'hasControls',
+]
+
+// Re-apply lock-derived interaction properties after canvas.loadFromJSON().
+// Fabric v6-v7 may not reliably restore selectable / evented / hasControls
+// even when they're present in the JSON (they default back to true on new
+// object instances).  Calling this right after loadFromJSON is a safe
+// defensive measure that costs nothing when no objects are locked.
+export function restoreLockStates(canvas) {
+  canvas.getObjects().forEach(obj => {
+    if (obj.locked) {
+      obj.selectable  = false
+      obj.evented     = false
+      obj.hasControls = false
+    }
+  })
+}
 
 // Generate unique ID
 export function uid(prefix = 'obj') {
