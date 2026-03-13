@@ -49,9 +49,12 @@ export default function Result() {
 
   const hasMockQr = !resultQrUrl || resultQrUrl === 'mock'
 
+  const layoutTemplate = useAppStore((s) => s.branding.layoutTemplate)
+  const contentHeight = layoutTemplate === 'split' ? 'flex-1' : 'h-screen'
+
   return (
     <SplitLayout title="Foto Selesai!" subtitle="Scan QR untuk download foto">
-      <div className="flex h-screen gap-8 px-8 py-10 overflow-hidden">
+      <div className={`flex ${contentHeight} gap-8 px-8 py-10 overflow-hidden`}>
 
         {/* Kiri: preview foto */}
         <div className="flex flex-col gap-6 flex-1 min-w-0 min-h-0">

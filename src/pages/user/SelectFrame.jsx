@@ -129,7 +129,7 @@ export default function SelectFrame() {
   const canShowPreview = activeFrame && activeFrame.slots?.length > 0 && (previewPng || previewCanvasW)
 
   return (
-    <div className="flex flex-col h-screen bg-brand-primary">
+    <div className="flex flex-col h-screen bg-black">
       {/* Top bar: Next button */}
       <div className="flex items-center justify-end px-8 pt-4 pb-2">
         <button

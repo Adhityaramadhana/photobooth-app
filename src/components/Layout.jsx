@@ -39,12 +39,10 @@ export default function Layout() {
       wrapperStyle.backgroundSize = 'cover'
       wrapperStyle.backgroundPosition = 'center'
       wrapperStyle.backgroundRepeat = 'no-repeat'
-    } else if (branding.bgColor) {
-      wrapperStyle.backgroundColor = branding.bgColor
     }
   }
 
-  const hasCustomBg = isUserRoute && (branding.bgImageDataUrl || branding.bgColor)
+  const hasCustomBg = isUserRoute && branding.bgImageDataUrl
   const showPersistentLogo =
     isUserRoute &&
     branding.showLogoPersistent &&
