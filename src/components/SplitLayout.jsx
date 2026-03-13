@@ -64,7 +64,7 @@ export default function SplitLayout({ title, subtitle, children, forceCentered =
       </div>
 
       {/* ── Right Panel (content) ───────────────────────────── */}
-      <div className="flex-1 min-w-0 overflow-y-auto">
+      <div className="flex-1 min-w-0 h-screen overflow-y-auto flex flex-col">
         {children}
       </div>
     </div>

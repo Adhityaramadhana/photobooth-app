@@ -86,7 +86,7 @@ export default function Layout() {
       )}
 
       {/* Content wrapper — positioned above overlay */}
-      <div className="relative z-[2] min-h-screen">
+      <div className="relative z-[2] h-full min-h-screen">
         <Outlet />
       </div>
     </div>

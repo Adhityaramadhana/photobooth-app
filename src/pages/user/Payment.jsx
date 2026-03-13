@@ -13,6 +13,7 @@ function formatRp(amount) {
 export default function Payment() {
   const navigate = useNavigate()
   const { setPaymentStatus, setPaymentMethod } = useAppStore()
+  const layoutTemplate = useAppStore((s) => s.branding.layoutTemplate)
 
   const [step, setStep] = useState('choose')    // 'choose' | 'qris' | 'voucher'
   const [qrImage, setQrImage] = useState(null)
@@ -27,6 +28,9 @@ export default function Payment() {
 
   const pollingRef = useRef(null)
   const countdownRef = useRef(null)
+
+  // Height class: when split, content fills the right panel; when centered, fill viewport
+  const contentHeight = layoutTemplate === 'split' ? 'flex-1' : 'min-h-screen'
 
   useEffect(() => {
     window.electronAPI.admin.getSettings().then(({ settings }) => {
@@ -145,7 +149,7 @@ export default function Payment() {
   if (step === 'choose') {
     return (
       <SplitLayout title={title} subtitle={subtitle}>
-        <div className="flex flex-col items-center justify-center min-h-screen gap-10 px-8">
+        <div className={`flex flex-col items-center justify-center ${contentHeight} gap-10 px-8`}>
           <div className="text-center">
             <h1 className="text-4xl font-bold text-brand-text tracking-tight">Pilih Metode Bayar</h1>
             <p className="text-brand-text/40 text-sm mt-2">{formatRp(sessionPrice)} per sesi</p>
@@ -192,7 +196,7 @@ export default function Payment() {
   if (step === 'qris') {
     return (
       <SplitLayout title={title} subtitle={subtitle}>
-        <div className="flex flex-col items-center justify-center min-h-screen gap-6">
+        <div className={`flex flex-col items-center justify-center ${contentHeight} gap-6`}>
           <h1 className="text-3xl font-bold text-brand-text">Scan QRIS untuk Membayar</h1>
           <p className="text-brand-text/60 text-lg font-semibold">{formatRp(sessionPrice)}</p>
 
@@ -234,7 +238,7 @@ export default function Payment() {
   // ── Step: voucher ─────────────────────────────────────────────────────────
   return (
     <SplitLayout title={title} subtitle={subtitle}>
-      <div className="flex flex-col items-center justify-center min-h-screen gap-6 px-8">
+      <div className={`flex flex-col items-center justify-center ${contentHeight} gap-6 px-8`}>
         <h1 className="text-3xl font-bold text-brand-text">Masukkan Kode Voucher</h1>
 
         <div className="flex flex-col gap-3 w-full max-w-sm">

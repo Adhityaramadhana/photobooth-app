@@ -21,6 +21,7 @@
     "layoutTemplate": "centered",
     "showLogoPersistent": false,
     "decorativePreset": "none",
+    "decorativeColor": "",
     "bgOverlayOpacity": 0
   },
   "admin": {

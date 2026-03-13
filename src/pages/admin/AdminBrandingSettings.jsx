@@ -36,6 +36,7 @@ export default function AdminBrandingSettings() {
     layoutTemplate: 'centered',
     showLogoPersistent: false,
     decorativePreset: 'none',
+    decorativeColor: '',
     bgOverlayOpacity: 0,
   })
 
@@ -71,6 +72,7 @@ export default function AdminBrandingSettings() {
       form.layoutTemplate !== savedForm.layoutTemplate ||
       form.showLogoPersistent !== savedForm.showLogoPersistent ||
       form.decorativePreset !== savedForm.decorativePreset ||
+      form.decorativeColor !== savedForm.decorativeColor ||
       form.bgOverlayOpacity !== savedForm.bgOverlayOpacity
     const logoChanged = logoPreview !== savedLogoPreview
     const bgChanged = bgImagePreview !== savedBgImagePreview
@@ -108,6 +110,7 @@ export default function AdminBrandingSettings() {
         layoutTemplate: b.layoutTemplate ?? 'centered',
         showLogoPersistent: b.showLogoPersistent ?? false,
         decorativePreset: b.decorativePreset ?? 'none',
+        decorativeColor: b.decorativeColor ?? '',
         bgOverlayOpacity: b.bgOverlayOpacity ?? 0,
       }
       setForm(loaded)
@@ -185,6 +188,7 @@ export default function AdminBrandingSettings() {
           layoutTemplate: form.layoutTemplate,
           showLogoPersistent: form.showLogoPersistent,
           decorativePreset: form.decorativePreset,
+          decorativeColor: form.decorativeColor,
           bgOverlayOpacity: form.bgOverlayOpacity,
         },
         admin: { password: form.adminPassword || settings?.admin?.password || 'admin123' },
@@ -526,8 +530,38 @@ export default function AdminBrandingSettings() {
                 </button>
               ))}
             </div>
+
+            {/* Deco color picker — only when preset is not "none" */}
+            {form.decorativePreset !== 'none' && (
+              <div className="mt-3 flex items-center gap-3">
+                <label className="text-brand-text/50 text-xs whitespace-nowrap">Warna Dekorasi</label>
+                <input
+                  type="color"
+                  value={form.decorativeColor || form.primaryColor}
+                  onChange={(e) => setForm(f => ({ ...f, decorativeColor: e.target.value }))}
+                  className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent"
+                />
+                <input
+                  value={form.decorativeColor || ''}
+                  onChange={(e) => setForm(f => ({ ...f, decorativeColor: e.target.value }))}
+                  placeholder={form.primaryColor + ' (ikut aksen)'}
+                  className="w-28 px-2 py-1 bg-brand-surface border border-white/10 rounded text-brand-text text-xs font-mono focus:outline-none focus:border-brand-secondary"
+                />
+                {form.decorativeColor && (
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, decorativeColor: '' }))}
+                    className="text-red-400 text-xs hover:underline"
+                  >
+                    Reset (ikut aksen)
+                  </button>
+                )}
+              </div>
+            )}
+
             <p className="text-brand-text/30 text-xs mt-2">
-              Elemen dekoratif menggunakan warna aksen. Tampil di panel kiri saat layout Split Screen aktif.
+              Elemen dekoratif tampil di panel kiri saat layout Split Screen aktif.
+              {form.decorativePreset !== 'none' && !form.decorativeColor && ' Warna mengikuti warna aksen.'}
             </p>
           </div>
 
