@@ -12,6 +12,9 @@ function getContrastText(hex) {
   return luminance > 0.5 ? '#1a1a2e' : '#ffffff'
 }
 
+// Pages where persistent logo should NOT appear (already has its own logo display)
+const SKIP_LOGO_ROUTES = ['/idle']
+
 export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -42,12 +45,37 @@ export default function Layout() {
   }
 
   const hasCustomBg = isUserRoute && (branding.bgImageDataUrl || branding.bgColor)
+  const showPersistentLogo =
+    isUserRoute &&
+    branding.showLogoPersistent &&
+    branding.logoDataUrl &&
+    !SKIP_LOGO_ROUTES.includes(location.pathname)
+  const overlayOpacity = isUserRoute ? (branding.bgOverlayOpacity ?? 0) : 0
 
   return (
     <div
       className={`min-h-screen w-full text-white relative ${hasCustomBg ? '' : 'bg-black'}`}
       style={wrapperStyle}
     >
+      {/* Dark overlay for better text readability over background images */}
+      {overlayOpacity > 0 && (
+        <div
+          className="absolute inset-0 bg-black pointer-events-none z-[1]"
+          style={{ opacity: overlayOpacity / 100 }}
+        />
+      )}
+
+      {/* Persistent logo — top-left on all user pages (except idle) */}
+      {showPersistentLogo && (
+        <div className="absolute top-4 left-5 z-40 pointer-events-none select-none">
+          <img
+            src={branding.logoDataUrl}
+            alt="Logo"
+            className="h-8 w-auto object-contain opacity-70"
+          />
+        </div>
+      )}
+
       {isUserRoute && (
         <button
           onClick={handleExit}
@@ -57,7 +85,11 @@ export default function Layout() {
         </button>
       )}
 
-      <Outlet />
+      {/* Content wrapper — positioned above overlay */}
+      <div className="relative z-[2] min-h-screen">
+        <Outlet />
+      </div>
     </div>
   )
 }
+

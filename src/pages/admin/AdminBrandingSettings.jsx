@@ -12,6 +12,17 @@ function readFileAsDataUrl(file) {
   })
 }
 
+const LAYOUT_OPTIONS = [
+  { value: 'centered', label: 'Centered', desc: 'Konten di tengah halaman (default)' },
+  { value: 'split', label: 'Split Screen', desc: 'Panel kiri (branding) + panel kanan (konten)' },
+]
+
+const DECO_OPTIONS = [
+  { value: 'none', label: 'None', desc: 'Tanpa dekorasi', preview: '' },
+  { value: 'modern', label: 'Modern', desc: 'Star ✦, sparkle ✸, garis tipis', preview: '✦ ✸ →' },
+  { value: 'bold', label: 'Bold', desc: 'Bracket border, dots, arrow tebal', preview: '「 ● ▸' },
+]
+
 export default function AdminBrandingSettings() {
   const loadBranding = useAppStore((s) => s.loadBranding)
   const setAdminDirtyGuard = useAppStore((s) => s.setAdminDirtyGuard)
@@ -22,6 +33,10 @@ export default function AdminBrandingSettings() {
     tagline: '',
     bgColor: '',
     adminPassword: '',
+    layoutTemplate: 'centered',
+    showLogoPersistent: false,
+    decorativePreset: 'none',
+    bgOverlayOpacity: 0,
   })
 
   // Snapshot of last-saved values for dirty comparison
@@ -52,7 +67,11 @@ export default function AdminBrandingSettings() {
       form.primaryColor !== savedForm.primaryColor ||
       form.tagline !== savedForm.tagline ||
       form.bgColor !== savedForm.bgColor ||
-      form.adminPassword !== savedForm.adminPassword
+      form.adminPassword !== savedForm.adminPassword ||
+      form.layoutTemplate !== savedForm.layoutTemplate ||
+      form.showLogoPersistent !== savedForm.showLogoPersistent ||
+      form.decorativePreset !== savedForm.decorativePreset ||
+      form.bgOverlayOpacity !== savedForm.bgOverlayOpacity
     const logoChanged = logoPreview !== savedLogoPreview
     const bgChanged = bgImagePreview !== savedBgImagePreview
     return formChanged || logoChanged || bgChanged
@@ -86,6 +105,10 @@ export default function AdminBrandingSettings() {
         tagline: b.tagline ?? '',
         bgColor: b.bgColor ?? '',
         adminPassword: settings?.admin?.password ?? '',
+        layoutTemplate: b.layoutTemplate ?? 'centered',
+        showLogoPersistent: b.showLogoPersistent ?? false,
+        decorativePreset: b.decorativePreset ?? 'none',
+        bgOverlayOpacity: b.bgOverlayOpacity ?? 0,
       }
       setForm(loaded)
       setSavedForm(loaded)
@@ -159,6 +182,10 @@ export default function AdminBrandingSettings() {
           primaryColor: form.primaryColor,
           tagline: form.tagline,
           bgColor: form.bgColor,
+          layoutTemplate: form.layoutTemplate,
+          showLogoPersistent: form.showLogoPersistent,
+          decorativePreset: form.decorativePreset,
+          bgOverlayOpacity: form.bgOverlayOpacity,
         },
         admin: { password: form.adminPassword || settings?.admin?.password || 'admin123' },
       })
@@ -392,6 +419,116 @@ export default function AdminBrandingSettings() {
                 className="hidden"
               />
             </div>
+          </div>
+
+          {/* ── Background Overlay Opacity ────────────────────── */}
+          <div>
+            <label className="text-brand-text/50 text-xs mb-1 block">
+              Background Overlay Gelap — {form.bgOverlayOpacity}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="80"
+              step="5"
+              value={form.bgOverlayOpacity}
+              onChange={(e) => setForm(f => ({ ...f, bgOverlayOpacity: parseInt(e.target.value) }))}
+              className="w-full max-w-sm accent-brand-secondary"
+            />
+            <p className="text-brand-text/30 text-xs mt-1">
+              Lapisan gelap di atas background agar teks lebih terbaca. 0% = tanpa overlay.
+            </p>
+          </div>
+
+          {/* ════════════════════════════════════════════════════════════════ */}
+          <div className="border-t border-white/10 pt-4 mt-2">
+            <h2 className="text-lg font-semibold text-brand-text mb-4">Tampilan Halaman User</h2>
+          </div>
+
+          {/* ── Layout Template ──────────────────────────────────── */}
+          <div>
+            <label className="text-brand-text/50 text-xs mb-2 block">Layout Template</label>
+            <div className="flex gap-3">
+              {LAYOUT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, layoutTemplate: opt.value }))}
+                  className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition ${
+                    form.layoutTemplate === opt.value
+                      ? 'border-brand-secondary bg-brand-secondary/10'
+                      : 'border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  {/* Mini preview */}
+                  <div className="w-full h-16 rounded bg-brand-surface/50 flex overflow-hidden">
+                    {opt.value === 'centered' ? (
+                      <div className="flex-1 flex items-center justify-center">
+                        <div className="w-8 h-4 rounded bg-white/20" />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-[35%] border-r border-white/10 flex items-center justify-center">
+                          <div className="w-4 h-6 rounded bg-white/15" />
+                        </div>
+                        <div className="flex-1 flex items-center justify-center">
+                          <div className="w-8 h-4 rounded bg-white/20" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <span className="text-brand-text text-sm font-medium">{opt.label}</span>
+                  <span className="text-brand-text/30 text-xs text-center">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-brand-text/30 text-xs mt-2">
+              Split Screen berlaku di halaman Payment dan Result. Halaman lain (Idle, Select Frame, Photo, Processing) tetap full-screen.
+            </p>
+          </div>
+
+          {/* ── Logo Persistent ──────────────────────────────────── */}
+          <div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.showLogoPersistent}
+                onChange={(e) => setForm(f => ({ ...f, showLogoPersistent: e.target.checked }))}
+                className="w-4 h-4 rounded accent-brand-secondary"
+              />
+              <div>
+                <span className="text-brand-text text-sm font-medium">Tampilkan Logo di Semua Halaman</span>
+                <p className="text-brand-text/30 text-xs">Logo kecil di pojok kiri atas setiap halaman user (kecuali Idle Screen)</p>
+              </div>
+            </label>
+          </div>
+
+          {/* ── Decorative Elements ──────────────────────────────── */}
+          <div>
+            <label className="text-brand-text/50 text-xs mb-2 block">Elemen Dekoratif</label>
+            <div className="flex gap-3">
+              {DECO_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, decorativePreset: opt.value }))}
+                  className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition ${
+                    form.decorativePreset === opt.value
+                      ? 'border-brand-secondary bg-brand-secondary/10'
+                      : 'border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <span className="text-brand-text text-lg h-7 flex items-center">
+                    {opt.preview || '—'}
+                  </span>
+                  <span className="text-brand-text text-sm font-medium">{opt.label}</span>
+                  <span className="text-brand-text/30 text-xs text-center">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-brand-text/30 text-xs mt-2">
+              Elemen dekoratif menggunakan warna aksen. Tampil di panel kiri saat layout Split Screen aktif.
+            </p>
           </div>
 
           {/* ── Admin Password ──────────────────────────────────── */}

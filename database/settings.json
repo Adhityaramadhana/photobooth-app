@@ -17,7 +17,11 @@
     "tagline": "",
     "bgColor": "",
     "logoFile": "",
-    "bgImageFile": ""
+    "bgImageFile": "",
+    "layoutTemplate": "centered",
+    "showLogoPersistent": false,
+    "decorativePreset": "none",
+    "bgOverlayOpacity": 0
   },
   "admin": {
     "password": "4321"

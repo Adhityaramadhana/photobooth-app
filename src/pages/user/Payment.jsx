@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useAppStore from '../../store/useAppStore'
+import SplitLayout from '../../components/SplitLayout'
 
 const QRIS_TIMEOUT_SEC = 5 * 60 // 5 menit
 const POLL_INTERVAL_MS = 3000
@@ -125,132 +126,149 @@ export default function Payment() {
     return `${m}:${String(s).padStart(2, '0')}`
   }
 
+  function handleBack() {
+    clearInterval(pollingRef.current)
+    clearInterval(countdownRef.current)
+    setStep('choose')
+  }
+
+  // ── Titles per step ──────────────────────────────────────────────────────────
+  const splitTitles = {
+    choose: { title: 'Pilih Metode Pembayaran', subtitle: formatRp(sessionPrice) + ' per sesi' },
+    qris:   { title: 'Cashless Payment', subtitle: 'Scan QR untuk bayar' },
+    voucher:{ title: 'Voucher', subtitle: 'Masukkan kode voucher' },
+  }
+
+  const { title, subtitle } = splitTitles[step] || splitTitles.choose
+
   // ── Step: choose ──────────────────────────────────────────────────────────
   if (step === 'choose') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-10 px-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-brand-text tracking-tight">Pilih Metode Bayar</h1>
-          <p className="text-brand-text/40 text-sm mt-2">{formatRp(sessionPrice)} per sesi</p>
+      <SplitLayout title={title} subtitle={subtitle}>
+        <div className="flex flex-col items-center justify-center min-h-screen gap-10 px-8">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-brand-text tracking-tight">Pilih Metode Bayar</h1>
+            <p className="text-brand-text/40 text-sm mt-2">{formatRp(sessionPrice)} per sesi</p>
+          </div>
+
+          <div className="flex gap-6 w-full max-w-xl">
+            <button
+              onClick={handleChooseQris}
+              disabled={loading}
+              className="flex-1 flex flex-col items-center gap-4 bg-brand-surface border-2 border-white/10 rounded-2xl p-8 active:scale-95 transition hover:border-brand-secondary"
+            >
+              <span className="text-5xl">📱</span>
+              <div className="text-center">
+                <p className="text-brand-text font-bold text-xl">QRIS</p>
+                <p className="text-brand-text/40 text-sm mt-1">Bayar dengan GoPay, OVO, DANA, dll</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setStep('voucher')}
+              className="flex-1 flex flex-col items-center gap-4 bg-brand-surface border-2 border-white/10 rounded-2xl p-8 active:scale-95 transition hover:border-brand-secondary"
+            >
+              <span className="text-5xl">🎟</span>
+              <div className="text-center">
+                <p className="text-brand-text font-bold text-xl">Voucher</p>
+                <p className="text-brand-text/40 text-sm mt-1">Masukkan kode voucher</p>
+              </div>
+            </button>
+          </div>
+
+          {loading && (
+            <div className="w-8 h-8 border-4 border-brand-secondary border-t-transparent rounded-full animate-spin" />
+          )}
+
+          {error && (
+            <p className="text-red-400 text-sm text-center">{error}</p>
+          )}
         </div>
-
-        <div className="flex gap-6 w-full max-w-xl">
-          <button
-            onClick={handleChooseQris}
-            disabled={loading}
-            className="flex-1 flex flex-col items-center gap-4 bg-brand-surface border-2 border-white/10 rounded-2xl p-8 active:scale-95 transition hover:border-brand-secondary"
-          >
-            <span className="text-5xl">📱</span>
-            <div className="text-center">
-              <p className="text-brand-text font-bold text-xl">QRIS</p>
-              <p className="text-brand-text/40 text-sm mt-1">Bayar dengan GoPay, OVO, DANA, dll</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setStep('voucher')}
-            className="flex-1 flex flex-col items-center gap-4 bg-brand-surface border-2 border-white/10 rounded-2xl p-8 active:scale-95 transition hover:border-brand-secondary"
-          >
-            <span className="text-5xl">🎟</span>
-            <div className="text-center">
-              <p className="text-brand-text font-bold text-xl">Voucher</p>
-              <p className="text-brand-text/40 text-sm mt-1">Masukkan kode voucher</p>
-            </div>
-          </button>
-        </div>
-
-        {loading && (
-          <div className="w-8 h-8 border-4 border-brand-secondary border-t-transparent rounded-full animate-spin" />
-        )}
-
-        {error && (
-          <p className="text-red-400 text-sm text-center">{error}</p>
-        )}
-      </div>
+      </SplitLayout>
     )
   }
 
   // ── Step: qris ────────────────────────────────────────────────────────────
   if (step === 'qris') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-6">
-        <h1 className="text-3xl font-bold text-brand-text">Scan QRIS untuk Membayar</h1>
-        <p className="text-brand-text/60 text-lg font-semibold">{formatRp(sessionPrice)}</p>
+      <SplitLayout title={title} subtitle={subtitle}>
+        <div className="flex flex-col items-center justify-center min-h-screen gap-6">
+          <h1 className="text-3xl font-bold text-brand-text">Scan QRIS untuk Membayar</h1>
+          <p className="text-brand-text/60 text-lg font-semibold">{formatRp(sessionPrice)}</p>
 
-        {isMock ? (
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-64 h-64 bg-brand-surface border-2 border-brand-secondary/30 rounded-2xl flex flex-col items-center justify-center gap-3 p-6">
-              <span className="text-4xl">🔧</span>
-              <p className="text-brand-text/40 text-xs text-center">Mode development: Midtrans belum dikonfigurasi</p>
+          {isMock ? (
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-64 h-64 bg-brand-surface border-2 border-brand-secondary/30 rounded-2xl flex flex-col items-center justify-center gap-3 p-6">
+                <span className="text-4xl">🔧</span>
+                <p className="text-brand-text/40 text-xs text-center">Mode development: Midtrans belum dikonfigurasi</p>
+              </div>
+              <button
+                onClick={() => handleOnPaid('qris', sessionPrice)}
+                className="px-10 py-4 bg-brand-secondary text-brand-secondary-text rounded-2xl text-lg font-semibold active:scale-95 transition"
+              >
+                Simulasi Bayar ✓
+              </button>
             </div>
-            <button
-              onClick={() => handleOnPaid('qris', sessionPrice)}
-              className="px-10 py-4 bg-brand-secondary text-brand-secondary-text rounded-2xl text-lg font-semibold active:scale-95 transition"
-            >
-              Simulasi Bayar ✓
-            </button>
-          </div>
-        ) : (
-          <div className="w-64 h-64 bg-white rounded-2xl p-2 overflow-hidden">
-            <img src={qrImage} alt="QRIS" className="w-full h-full object-contain" />
-          </div>
-        )}
+          ) : (
+            <div className="w-64 h-64 bg-white rounded-2xl p-2 overflow-hidden">
+              <img src={qrImage} alt="QRIS" className="w-full h-full object-contain" />
+            </div>
+          )}
 
-        <div className="flex flex-col items-center gap-1">
-          <p className="text-brand-text/40 text-sm">Bayar dalam</p>
-          <p className="text-brand-text font-mono text-2xl font-bold">{formatTime(timeLeft)}</p>
+          <div className="flex flex-col items-center gap-1">
+            <p className="text-brand-text/40 text-sm">Bayar dalam</p>
+            <p className="text-brand-text font-mono text-2xl font-bold">{formatTime(timeLeft)}</p>
+          </div>
+
+          <button
+            onClick={handleBack}
+            className="text-brand-text/30 text-sm hover:text-brand-text/60 transition"
+          >
+            ← Kembali
+          </button>
         </div>
-
-        <button
-          onClick={() => {
-            clearInterval(pollingRef.current)
-            clearInterval(countdownRef.current)
-            setStep('choose')
-          }}
-          className="text-brand-text/30 text-sm hover:text-brand-text/60 transition"
-        >
-          ← Kembali
-        </button>
-      </div>
+      </SplitLayout>
     )
   }
 
   // ── Step: voucher ─────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-6 px-8">
-      <h1 className="text-3xl font-bold text-brand-text">Masukkan Kode Voucher</h1>
+    <SplitLayout title={title} subtitle={subtitle}>
+      <div className="flex flex-col items-center justify-center min-h-screen gap-6 px-8">
+        <h1 className="text-3xl font-bold text-brand-text">Masukkan Kode Voucher</h1>
 
-      <div className="flex flex-col gap-3 w-full max-w-sm">
-        <input
-          value={voucherCode}
-          onChange={(e) => {
-            setVoucherCode(e.target.value.toUpperCase())
-            setVoucherError(null)
-          }}
-          onKeyDown={(e) => e.key === 'Enter' && handleValidateVoucher()}
-          placeholder="Contoh: FREE001"
-          className="w-full px-5 py-4 bg-brand-surface border-2 border-white/10 rounded-xl text-brand-text text-xl font-mono text-center tracking-widest focus:outline-none focus:border-brand-secondary uppercase"
-        />
+        <div className="flex flex-col gap-3 w-full max-w-sm">
+          <input
+            value={voucherCode}
+            onChange={(e) => {
+              setVoucherCode(e.target.value.toUpperCase())
+              setVoucherError(null)
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && handleValidateVoucher()}
+            placeholder="Contoh: FREE001"
+            className="w-full px-5 py-4 bg-brand-surface border-2 border-white/10 rounded-xl text-brand-text text-xl font-mono text-center tracking-widest focus:outline-none focus:border-brand-secondary uppercase"
+          />
 
-        {voucherError && (
-          <p className="text-red-400 text-sm text-center">{voucherError}</p>
-        )}
+          {voucherError && (
+            <p className="text-red-400 text-sm text-center">{voucherError}</p>
+          )}
+
+          <button
+            onClick={handleValidateVoucher}
+            disabled={!voucherCode.trim()}
+            className="w-full py-4 bg-brand-secondary text-brand-secondary-text rounded-xl text-lg font-semibold active:scale-95 transition disabled:opacity-40"
+          >
+            Validasi Voucher
+          </button>
+        </div>
 
         <button
-          onClick={handleValidateVoucher}
-          disabled={!voucherCode.trim()}
-          className="w-full py-4 bg-brand-secondary text-brand-secondary-text rounded-xl text-lg font-semibold active:scale-95 transition disabled:opacity-40"
+          onClick={() => { setVoucherCode(''); setVoucherError(null); setStep('choose') }}
+          className="text-brand-text/30 text-sm hover:text-brand-text/60 transition mt-2"
         >
-          Validasi Voucher
+          ← Kembali
         </button>
       </div>
-
-      <button
-        onClick={() => { setVoucherCode(''); setVoucherError(null); setStep('choose') }}
-        className="text-brand-text/30 text-sm hover:text-brand-text/60 transition mt-2"
-      >
-        ← Kembali
-      </button>
-    </div>
+    </SplitLayout>
   )
 }

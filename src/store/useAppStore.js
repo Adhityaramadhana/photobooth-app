@@ -32,6 +32,10 @@ const useAppStore = create((set, get) => ({
     bgColor: '',
     logoDataUrl: null,
     bgImageDataUrl: null,
+    layoutTemplate: 'centered',
+    showLogoPersistent: false,
+    decorativePreset: 'none',
+    bgOverlayOpacity: 0,
   },
   brandingLoaded: false,
 
@@ -100,6 +104,10 @@ const useAppStore = create((set, get) => ({
           bgColor: b.bgColor || '',
           logoDataUrl: logoRes.data || null,
           bgImageDataUrl: bgRes.data || null,
+          layoutTemplate: b.layoutTemplate || 'centered',
+          showLogoPersistent: b.showLogoPersistent ?? false,
+          decorativePreset: b.decorativePreset || 'none',
+          bgOverlayOpacity: b.bgOverlayOpacity ?? 0,
         },
         brandingLoaded: true,
       })

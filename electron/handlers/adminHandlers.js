@@ -36,7 +36,7 @@ const DEFAULT_SETTINGS = {
   midtrans: { serverKey: '', clientKey: '', isProduction: false },
   pricing: { sessionPrice: 30000 },
   printer: { name: '', copies: 1 },
-  branding: { studioName: 'Photobooth', primaryColor: '#e94560', tagline: '', bgColor: '', logoFile: '', bgImageFile: '' },
+  branding: { studioName: 'Photobooth', primaryColor: '#e94560', tagline: '', bgColor: '', logoFile: '', bgImageFile: '', layoutTemplate: 'centered', showLogoPersistent: false, decorativePreset: 'none', bgOverlayOpacity: 0 },
   admin: { password: 'admin123' },
   firebase: { apiKey: '', storageBucket: '' }
 }

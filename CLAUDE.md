@@ -145,8 +145,10 @@ photobooth-app/
 │   │       ├── AdminBrandingSettings.jsx
 │   │       └── AdminCloudSettings.jsx
 │   ├── components/
-│   │   ├── Layout.jsx             # User layout + exit button
+│   │   ├── Layout.jsx             # User layout + exit button + persistent logo + bg overlay
 │   │   ├── AdminLayout.jsx        # Admin layout + sidebar nav + logout
+│   │   ├── SplitLayout.jsx        # Split-screen wrapper (kiri: branding, kanan: konten)
+│   │   ├── DecoElements.jsx       # Elemen dekoratif (preset: none/modern/bold)
 │   │   └── admin/editor/
 │   │       ├── TemplateEditor.jsx # Main editor wrapper (save, load, layout state)
 │   │       ├── EditorCanvas.jsx   # Fabric.js canvas (zoom via CSS transform)
@@ -204,7 +206,11 @@ photobooth-app/
     "tagline": "",
     "bgColor": "",
     "logoFile": "",
-    "bgImageFile": ""
+    "bgImageFile": "",
+    "layoutTemplate": "centered",
+    "showLogoPersistent": false,
+    "decorativePreset": "none",
+    "bgOverlayOpacity": 0
   },
   "admin": { "password": "admin123" },
   "firebase": { "apiKey": "", "storageBucket": "" }
@@ -272,6 +278,10 @@ Di runtime:
 | `branding.bgColor` | string | Background warna halaman user (hex, kosong = default hitam) |
 | `branding.logoDataUrl` | string\|null | DataURL logo studio |
 | `branding.bgImageDataUrl` | string\|null | DataURL background gambar (override bgColor) |
+| `branding.layoutTemplate` | `'centered'`\|`'split'` | Layout halaman user: centered (default) atau split-screen |
+| `branding.showLogoPersistent` | boolean | Tampilkan logo kecil di semua halaman user |
+| `branding.decorativePreset` | `'none'`\|`'modern'`\|`'bold'` | Preset elemen dekoratif (bintang, garis, dots) |
+| `branding.bgOverlayOpacity` | number (0-100) | Opacity dark overlay di atas background |
 | `brandingLoaded` | boolean | Apakah branding sudah selesai di-load |
 
 ## IPC Bridge
@@ -416,6 +426,10 @@ npm run build:win  # Build installer Windows
 - **Unsaved changes guard**: `AdminBrandingSettings` sync dirty state ke `adminDirtyGuard` (Zustand) → `AdminLayout` intercept sidebar click → tampilkan dialog konfirmasi
 - **Logo & background image** disimpan sebagai file di `userData/database/branding/`, path disimpan di settings.json (`logoFile`, `bgImageFile`)
 - `ensureSettings()` hanya bootstrap dari seed file jika `userData/settings.json` belum ada — TIDAK pernah overwrite data yang sudah diubah admin
+- **Layout template**: `layoutTemplate` (`centered` | `split`) — di `SplitLayout.jsx`, Payment dan Result di-wrap. IdleScreen, SelectFrame, PhotoSession, Processing tetap full-screen
+- **Persistent logo**: `showLogoPersistent` — logo kecil di pojok kiri atas semua halaman user (kecuali IdleScreen), dirender di `Layout.jsx`
+- **Decorative elements**: `decorativePreset` (`none` | `modern` | `bold`) — dirender oleh `DecoElements.jsx`, ditampilkan di panel kiri `SplitLayout`
+- **Background overlay**: `bgOverlayOpacity` (0-100) — overlay gelap di `Layout.jsx` di atas background image
 
 ## PhotoSession — Background Live Frame Recording
 - Saat countdown berjalan, renderer merekam frame live view (webcam/DSLR) tiap ~200ms.
